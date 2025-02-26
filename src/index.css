@@ -14,7 +14,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
  
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
  
     --secondary: 210 40% 96.1%;
@@ -44,10 +44,6 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
-  
-  .glass-effect {
-    @apply bg-white bg-opacity-50 backdrop-blur-lg;
-  }
 }
 
 /* Smooth scrolling */
@@ -56,7 +52,21 @@ html {
 }
 
 /* Custom animations */
-.hover-lift {
-  @apply transition-transform duration-300 hover:-translate-y-1;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
+.animate-fade-up {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.glass-effect {
+  @apply bg-white bg-opacity-50 backdrop-blur-lg;
+}
