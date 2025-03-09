@@ -1,8 +1,9 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { LucideIcon } from "lucide-react";
-import { Link } from "react-router-dom";
+import LoginForm from "./LoginForm";
 
 interface LoginCardProps {
   title: string;
@@ -13,6 +14,26 @@ interface LoginCardProps {
 }
 
 const LoginCard = ({ title, description, icon: Icon, route, color }: LoginCardProps) => {
+  const [showForm, setShowForm] = useState(false);
+  
+  const handleShowForm = () => {
+    setShowForm(true);
+  };
+  
+  const handleBack = () => {
+    setShowForm(false);
+  };
+
+  if (showForm) {
+    return (
+      <LoginForm 
+        role={title as "Teacher" | "Student" | "Admin" | "Parent/Mentor"} 
+        onBack={handleBack} 
+        color={color} 
+      />
+    );
+  }
+
   return (
     <Card className="flex flex-col justify-between transition-all duration-300 hover:shadow-lg animate-fade-up">
       <CardHeader className={`${color} rounded-t-lg text-white`}>
@@ -28,10 +49,12 @@ const LoginCard = ({ title, description, icon: Icon, route, color }: LoginCardPr
         </p>
       </CardContent>
       <CardFooter className="p-6 pt-0">
-        <Button asChild className="w-full" style={{ backgroundColor: color }}>
-          <Link to={route}>
-            Login as {title}
-          </Link>
+        <Button 
+          onClick={handleShowForm} 
+          className="w-full" 
+          style={{ backgroundColor: color.replace("bg-", "") }}
+        >
+          Login as {title}
         </Button>
       </CardFooter>
     </Card>
