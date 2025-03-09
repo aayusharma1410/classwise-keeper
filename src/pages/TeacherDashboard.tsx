@@ -1,5 +1,5 @@
-
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Users, 
   BookOpen, 
@@ -8,7 +8,9 @@ import {
   Bell, 
   Search,
   CheckCircle,
-  XCircle
+  XCircle,
+  ArrowLeft,
+  Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +26,7 @@ import AttendanceTable from "@/components/AttendanceTable";
 import AttendanceChart from "@/components/AttendanceChart";
 
 const TeacherDashboard = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
@@ -59,18 +62,40 @@ const TeacherDashboard = () => {
     });
   };
 
+  const handleGoBack = () => {
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 p-6 md:p-8">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-8 flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
-              Teacher Dashboard
-            </h1>
-            <p className="text-gray-600">Welcome, Professor Anderson</p>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleGoBack} 
+              className="rounded-full bg-white shadow-sm hover:bg-blue-50"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="space-y-1">
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
+                Teacher Dashboard
+              </h1>
+              <p className="text-gray-600">Welcome, Professor Anderson</p>
+            </div>
           </div>
           <div className="flex space-x-3">
+            <Button 
+              variant="outline" 
+              className="flex items-center space-x-2 border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+              onClick={handleGoBack}
+            >
+              <Home className="h-4 w-4" />
+              <span>Home</span>
+            </Button>
             <Button variant="outline" className="flex items-center space-x-2 border-blue-200 hover:bg-blue-50 hover:text-blue-600">
               <Bell className="h-4 w-4" />
               <span>Notifications</span>

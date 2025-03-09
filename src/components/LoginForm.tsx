@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { ArrowLeft, Home } from "lucide-react";
 
 interface LoginFormProps {
   role: "Teacher" | "Student" | "Admin" | "Parent/Mentor";
@@ -59,7 +60,18 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
   return (
     <Card className="animate-fade-up">
       <CardHeader className={`${color} rounded-t-lg text-white`}>
-        <CardTitle className="text-center text-2xl">Login as {role}</CardTitle>
+        <div className="flex items-center justify-between">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onBack} 
+            className="text-white hover:bg-white/20"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <CardTitle className="text-center text-2xl">Login as {role}</CardTitle>
+          <div className="w-9"></div> {/* Spacer for alignment */}
+        </div>
       </CardHeader>
       <CardContent className="p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -145,10 +157,11 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
         </form>
       </CardContent>
       <CardFooter className="flex justify-between p-6 pt-0">
-        <Button variant="outline" onClick={onBack}>
+        <Button variant="outline" onClick={onBack} className="flex items-center gap-2">
+          <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <Button onClick={handleSubmit} className="w-full" style={{ backgroundColor: color.replace("bg-", "") }}>
+        <Button onClick={handleSubmit} className="w-full max-w-[200px]" style={{ backgroundColor: color.replace("bg-", "") }}>
           Login
         </Button>
       </CardFooter>
