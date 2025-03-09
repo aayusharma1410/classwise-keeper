@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import ClassCard from "@/components/ClassCard";
 import { PlusCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   const classes = [
@@ -65,10 +66,17 @@ const Index = () => {
             </h1>
             <p className="text-gray-600">Track attendance and manage marks efficiently</p>
           </div>
-          <Button className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700">
-            <PlusCircle className="h-4 w-4" />
-            <span>Add New Class</span>
-          </Button>
+          <div className="flex gap-3">
+            <Button className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700">
+              <PlusCircle className="h-4 w-4" />
+              <span>Add New Class</span>
+            </Button>
+            <Button asChild className="inline-flex items-center space-x-2 bg-green-600 hover:bg-green-700">
+              <Link to="/teacher-dashboard">
+                <span>Teacher Dashboard</span>
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
