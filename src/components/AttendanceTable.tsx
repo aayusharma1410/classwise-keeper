@@ -3,6 +3,8 @@ import { useState } from "react";
 import { CheckCircle, XCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { saveAttendance } from "@/lib/attendance-service";
 
 // Default student data
 const defaultStudents = [
@@ -29,11 +31,23 @@ interface AttendanceStatus {
 
 interface AttendanceTableProps {
   specialStudents?: Student[];
+  classId?: string;
+  subjectId?: string;
+  teacherId?: string;
+  onSaveSuccess?: () => void;
 }
 
-const AttendanceTable = ({ specialStudents }: AttendanceTableProps) => {
+const AttendanceTable = ({ 
+  specialStudents, 
+  classId = "default-class", 
+  subjectId = "default-subject", 
+  teacherId = "default-teacher",
+  onSaveSuccess 
+}: AttendanceTableProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [attendance, setAttendance] = useState<AttendanceStatus>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
   
   // Use special students if provided, otherwise use default
   const students = specialStudents || defaultStudents;
@@ -61,6 +75,65 @@ const AttendanceTable = ({ specialStudents }: AttendanceTableProps) => {
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
+  };
+
+  const handleSaveAttendance = async () => {
+    try {
+      setIsSaving(true);
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Prepare attendance records for saving
+      const attendanceRecords = Object.entries(attendance).map(([studentId, status]) => ({
+        student_id: studentId,
+        class_id: classId,
+        subject_id: subjectId,
+        date: today,
+        status: status || 'absent', // Default to absent if not set
+        teacher_id: teacherId
+      }));
+      
+      if (attendanceRecords.length === 0) {
+        toast({
+          title: "No attendance records",
+          description: "Please mark attendance for at least one student",
+          variant: "destructive"
+        });
+        setIsSaving(false);
+        return;
+      }
+      
+      const result = await saveAttendance(attendanceRecords);
+      
+      if (result.success) {
+        toast({
+          title: "Attendance Saved",
+          description: "Student attendance has been saved successfully"
+        });
+        
+        if (onSaveSuccess) {
+          onSaveSuccess();
+        }
+      } else {
+        toast({
+          title: "Error Saving Attendance",
+          description: "There was a problem saving the attendance records",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error saving attendance:", error);
+      toast({
+        title: "Error Saving Attendance",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const resetAttendance = () => {
+    setAttendance({});
   };
 
   return (
@@ -159,6 +232,23 @@ const AttendanceTable = ({ specialStudents }: AttendanceTableProps) => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="mt-4 flex justify-end space-x-3">
+        <Button 
+          variant="outline" 
+          className="border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+          onClick={resetAttendance}
+        >
+          Reset
+        </Button>
+        <Button 
+          onClick={handleSaveAttendance} 
+          disabled={isSaving}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          {isSaving ? "Saving..." : "Save Attendance"}
+        </Button>
       </div>
     </div>
   );

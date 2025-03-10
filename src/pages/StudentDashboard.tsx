@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,17 +5,30 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Home, BookOpen, GraduationCap, Calendar, List, FileText, Bell, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { getStudentAttendance, groupAttendanceByMonth, calculateAttendancePercentage } from "@/lib/attendance-service";
 
 interface StudentData {
   name: string;
   rollNumber: string;
   studentCode: string;
   role: string;
+  id?: string;
+}
+
+interface AttendanceMonth {
+  month: string;
+  present: number;
+  absent: number;
+  late: number;
+  percentage: string;
 }
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
+  const [attendanceData, setAttendanceData] = useState<AttendanceMonth[]>([]);
+  const [attendancePercentage, setAttendancePercentage] = useState("0%");
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     // Get user data from session storage
@@ -36,12 +48,37 @@ const StudentDashboard = () => {
       }
       
       setStudentData(parsedData);
+      
+      // Fetch attendance data
+      fetchAttendanceData(parsedData.id || parsedData.studentCode);
     } catch (error) {
       console.error("Error parsing user data:", error);
       toast.error("Something went wrong");
       navigate("/");
     }
   }, [navigate]);
+
+  const fetchAttendanceData = async (studentId: string) => {
+    try {
+      setIsLoading(true);
+      const result = await getStudentAttendance(studentId);
+      
+      if (result.success && result.data) {
+        // Group attendance by month
+        const groupedData = groupAttendanceByMonth(result.data);
+        setAttendanceData(groupedData);
+        
+        // Calculate overall attendance percentage
+        const percentage = calculateAttendancePercentage(result.data);
+        setAttendancePercentage(percentage);
+      }
+    } catch (error) {
+      console.error("Error fetching attendance data:", error);
+      toast.error("Failed to load attendance data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     sessionStorage.removeItem("user");
@@ -116,7 +153,7 @@ const StudentDashboard = () => {
         </Card>
 
         {/* Attendance Alert Card - Show only if below 75% */}
-        <AttendanceAlarmCard />
+        <AttendanceAlarmCard percentage={parseInt(attendancePercentage)} />
 
         {/* Tabs Content */}
         <Tabs defaultValue="attendance" className="space-y-4">
@@ -140,7 +177,7 @@ const StudentDashboard = () => {
           </TabsListWrapper>
 
           <TabsContent value="attendance" className="space-y-4">
-            <AttendanceTable />
+            <AttendanceTable data={attendanceData} isLoading={isLoading} />
           </TabsContent>
           
           <TabsContent value="marks" className="space-y-4">
@@ -161,10 +198,8 @@ const StudentDashboard = () => {
 };
 
 // New Attendance Alarm Card Component
-const AttendanceAlarmCard = () => {
-  // For demo purposes, hardcoding the attendance percentage to trigger the alarm
-  const attendancePercentage = 73;
-  const isAttendanceLow = attendancePercentage < 75;
+const AttendanceAlarmCard = ({ percentage = 0 }) => {
+  const isAttendanceLow = percentage < 75;
 
   if (!isAttendanceLow) return null;
 
@@ -181,7 +216,7 @@ const AttendanceAlarmCard = () => {
               Attendance Alert
             </h3>
             <p className="text-red-600 mt-1">
-              Your current attendance is {attendancePercentage}%, which is below the required 75%. 
+              Your current attendance is {percentage}%, which is below the required 75%. 
               Please improve your attendance to avoid academic penalties.
             </p>
             <div className="mt-3 flex gap-2">
@@ -206,60 +241,76 @@ const TabsListWrapper = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-const AttendanceTable = () => (
-  <Card className="border-blue-100 shadow-sm">
-    <CardHeader className="bg-blue-50 border-b border-blue-100">
-      <CardTitle className="text-lg text-blue-700">Attendance Record</CardTitle>
-    </CardHeader>
-    <CardContent className="p-6">
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-gray-50 border-b">
-              <th className="p-3 text-left">Month</th>
-              <th className="p-3 text-center">Present</th>
-              <th className="p-3 text-center">Absent</th>
-              <th className="p-3 text-center">Late</th>
-              <th className="p-3 text-center">Percentage</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              { month: "January", present: 20, absent: 2, late: 1, percentage: "87%" },
-              { month: "February", present: 18, absent: 0, late: 2, percentage: "90%" },
-              { month: "March", present: 22, absent: 1, late: 0, percentage: "96%" },
-              { month: "April", present: 16, absent: 5, late: 3, percentage: "73%" },
-            ].map((item, i) => (
-              <tr key={i} className="border-b hover:bg-gray-50">
-                <td className="p-3 font-medium">{item.month}</td>
-                <td className="p-3 text-center text-green-600">{item.present}</td>
-                <td className="p-3 text-center text-red-600">{item.absent}</td>
-                <td className="p-3 text-center text-amber-600">{item.late}</td>
-                <td className="p-3 text-center">
-                  <span className={`font-medium px-2 py-1 rounded-full text-xs ${
-                    parseFloat(item.percentage) < 75 
-                      ? "bg-red-100 text-red-700" 
-                      : "bg-green-100 text-green-700"
-                  }`}>
-                    {item.percentage}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      
-      <div className="mt-6 p-4 border border-blue-100 rounded-lg bg-blue-50">
-        <h4 className="text-blue-800 font-medium mb-2">Attendance Requirements</h4>
-        <p className="text-blue-700 text-sm">
-          <span className="font-bold">75% attendance is mandatory</span> to be eligible for final examinations. 
-          Students falling below this threshold may face academic penalties.
-        </p>
-      </div>
-    </CardContent>
-  </Card>
-);
+interface AttendanceTableProps {
+  data: AttendanceMonth[];
+  isLoading: boolean;
+}
+
+const AttendanceTable = ({ data, isLoading }: AttendanceTableProps) => {
+  // Use provided data or fallback to demo data if empty
+  const attendanceData = data.length > 0 ? data : [
+    { month: "January", present: 20, absent: 2, late: 1, percentage: "87%" },
+    { month: "February", present: 18, absent: 0, late: 2, percentage: "90%" },
+    { month: "March", present: 22, absent: 1, late: 0, percentage: "96%" },
+    { month: "April", present: 16, absent: 5, late: 3, percentage: "73%" },
+  ];
+
+  return (
+    <Card className="border-blue-100 shadow-sm">
+      <CardHeader className="bg-blue-50 border-b border-blue-100">
+        <CardTitle className="text-lg text-blue-700">Attendance Record</CardTitle>
+      </CardHeader>
+      <CardContent className="p-6">
+        {isLoading ? (
+          <div className="flex justify-center items-center py-8">
+            <p className="text-gray-500">Loading attendance data...</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b">
+                  <th className="p-3 text-left">Month</th>
+                  <th className="p-3 text-center">Present</th>
+                  <th className="p-3 text-center">Absent</th>
+                  <th className="p-3 text-center">Late</th>
+                  <th className="p-3 text-center">Percentage</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attendanceData.map((item, i) => (
+                  <tr key={i} className="border-b hover:bg-gray-50">
+                    <td className="p-3 font-medium">{item.month}</td>
+                    <td className="p-3 text-center text-green-600">{item.present}</td>
+                    <td className="p-3 text-center text-red-600">{item.absent}</td>
+                    <td className="p-3 text-center text-amber-600">{item.late}</td>
+                    <td className="p-3 text-center">
+                      <span className={`font-medium px-2 py-1 rounded-full text-xs ${
+                        parseFloat(item.percentage) < 75 
+                          ? "bg-red-100 text-red-700" 
+                          : "bg-green-100 text-green-700"
+                      }`}>
+                        {item.percentage}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        
+        <div className="mt-6 p-4 border border-blue-100 rounded-lg bg-blue-50">
+          <h4 className="text-blue-800 font-medium mb-2">Attendance Requirements</h4>
+          <p className="text-blue-700 text-sm">
+            <span className="font-bold">75% attendance is mandatory</span> to be eligible for final examinations. 
+            Students falling below this threshold may face academic penalties.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 const MarksTable = () => (
   <Card className="border-blue-100 shadow-sm">

@@ -25,6 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import AttendanceTable from "@/components/AttendanceTable";
 import AttendanceChart from "@/components/AttendanceChart";
+import { supabase } from "@/lib/supabase";
 
 interface TeacherData {
   name: string;
@@ -33,6 +34,7 @@ interface TeacherData {
   subject?: string;
   class?: string;
   uniqueCode?: string;
+  id?: string;
 }
 
 const TeacherDashboard = () => {
@@ -42,6 +44,7 @@ const TeacherDashboard = () => {
   const [selectedClass, setSelectedClass] = useState("");
   const [attendanceFilter, setAttendanceFilter] = useState("daily");
   const [teacherData, setTeacherData] = useState<TeacherData | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     // Retrieve teacher data from session storage
@@ -96,15 +99,29 @@ const TeacherDashboard = () => {
     });
   };
 
-  const handleSaveAttendance = () => {
+  const handleAttendanceSaved = () => {
+    // Refresh the component to show updated data
+    setRefreshKey(prev => prev + 1);
+    
     toast({
       title: "Attendance Saved",
-      description: "Student attendance has been saved successfully",
+      description: "Student attendance has been saved to the database successfully",
     });
   };
 
   const handleGoBack = () => {
     navigate("/");
+  };
+
+  // Get subject and class IDs for attendance records
+  const getSubjectId = () => {
+    const subject = subjects.find(s => s.name === selectedSubject);
+    return subject?.id || "HS101"; // Default to History for Aayush's case
+  };
+
+  const getClassId = () => {
+    const classItem = classes.find(c => c.name === selectedClass);
+    return classItem?.id || "4"; // Default to Class 12 E for Aayush's case
   };
 
   return (
@@ -220,18 +237,23 @@ const TeacherDashboard = () => {
               </CardHeader>
               <CardContent className="p-6">
                 {teacherData?.uniqueCode === "aayush123" ? (
-                  <AttendanceTable specialStudents={class12EStudents} />
+                  <AttendanceTable 
+                    key={refreshKey}
+                    specialStudents={class12EStudents} 
+                    classId={getClassId()}
+                    subjectId={getSubjectId()}
+                    teacherId={teacherData.id || "aayush"}
+                    onSaveSuccess={handleAttendanceSaved}
+                  />
                 ) : (
-                  <AttendanceTable />
+                  <AttendanceTable 
+                    key={refreshKey}
+                    classId={getClassId()}
+                    subjectId={getSubjectId()}
+                    teacherId={teacherData?.id || "default"}
+                    onSaveSuccess={handleAttendanceSaved}
+                  />
                 )}
-                <div className="mt-4 flex justify-end space-x-3">
-                  <Button variant="outline" className="border-blue-200 hover:bg-blue-50 hover:text-blue-600">
-                    Reset
-                  </Button>
-                  <Button onClick={handleSaveAttendance} className="bg-blue-600 hover:bg-blue-700">
-                    Save Attendance
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           </div>
