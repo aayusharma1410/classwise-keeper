@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Home } from "lucide-react";
+import { ArrowLeft, Home, LogIn } from "lucide-react";
 
 interface LoginFormProps {
   role: "Teacher" | "Student" | "Admin" | "Parent/Mentor";
@@ -24,42 +25,32 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate based on role - accepting all credentials with minimal validation
-    let isValid = false;
+    // Accept all credentials with minimal validation
     let routePath = "";
 
     switch (role) {
       case "Teacher":
-        isValid = !!formData.subject && !!formData.code;
         routePath = "/teacher-dashboard";
         break;
       case "Student":
-        isValid = !!formData.name && !!formData.rollNumber && !!formData.studentCode;
         routePath = "/student-dashboard";
         break;
       case "Admin":
-        // Accept any admin code
-        isValid = !!formData.adminCode;
         routePath = "/admin-dashboard";
         break;
       case "Parent/Mentor":
-        isValid = !!formData.mentorCode;
         routePath = "/mentor-dashboard";
         break;
     }
 
-    if (isValid) {
-      // Store user data in sessionStorage for persistence
-      sessionStorage.setItem("user", JSON.stringify({ role, ...formData }));
-      navigate(routePath);
-      toast.success(`Logged in successfully as ${role}`);
-    } else {
-      toast.error("Please fill all required fields");
-    }
+    // Store user data in sessionStorage for persistence
+    sessionStorage.setItem("user", JSON.stringify({ role, ...formData }));
+    navigate(routePath);
+    toast.success(`Logged in successfully as ${role}`);
   };
 
   return (
-    <Card className="animate-fade-up">
+    <Card className="animate-fade-up shadow-lg border-t-4" style={{ borderTopColor: color.replace("bg-", "") }}>
       <CardHeader className={`${color} rounded-t-lg text-white`}>
         <div className="flex items-center justify-between">
           <Button 
@@ -70,7 +61,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <CardTitle className="text-center text-2xl">Login as {role}</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold">Login as {role}</CardTitle>
           <div className="w-9"></div> {/* Spacer for alignment */}
         </div>
       </CardHeader>
@@ -81,7 +72,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
               <div className="space-y-2">
                 <label htmlFor="subject" className="text-sm font-medium">Subject</label>
                 <Select onValueChange={(value) => handleChange("subject", value)}>
-                  <SelectTrigger id="subject">
+                  <SelectTrigger id="subject" className="w-full">
                     <SelectValue placeholder="Select subject" />
                   </SelectTrigger>
                   <SelectContent>
@@ -99,6 +90,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
                   id="code" 
                   placeholder="Enter class code" 
                   onChange={(e) => handleChange("code", e.target.value)} 
+                  className="w-full"
                 />
               </div>
             </>
@@ -112,6 +104,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
                   id="name" 
                   placeholder="Enter your name" 
                   onChange={(e) => handleChange("name", e.target.value)} 
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
@@ -120,6 +113,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
                   id="rollNumber" 
                   placeholder="Enter your roll number" 
                   onChange={(e) => handleChange("rollNumber", e.target.value)} 
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
@@ -128,6 +122,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
                   id="studentCode" 
                   placeholder="Enter your student code" 
                   onChange={(e) => handleChange("studentCode", e.target.value)} 
+                  className="w-full"
                 />
               </div>
             </>
@@ -141,6 +136,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
                 type="password" 
                 placeholder="Enter admin code" 
                 onChange={(e) => handleChange("adminCode", e.target.value)} 
+                className="w-full"
               />
             </div>
           )}
@@ -152,6 +148,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
                 id="mentorCode" 
                 placeholder="Enter mentor code" 
                 onChange={(e) => handleChange("mentorCode", e.target.value)} 
+                className="w-full"
               />
             </div>
           )}
@@ -162,7 +159,12 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <Button onClick={handleSubmit} className="w-full max-w-[200px]" style={{ backgroundColor: color.replace("bg-", "") }}>
+        <Button 
+          onClick={handleSubmit} 
+          className="w-full max-w-[200px] flex items-center gap-2" 
+          style={{ backgroundColor: color.replace("bg-", "") }}
+        >
+          <LogIn className="h-4 w-4" />
           Login
         </Button>
       </CardFooter>
