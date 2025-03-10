@@ -1,12 +1,12 @@
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Home, LogIn } from "lucide-react";
+import { ArrowLeft, LogIn } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 interface LoginFormProps {
   role: "Teacher" | "Student" | "Admin" | "Parent/Mentor";
@@ -15,38 +15,29 @@ interface LoginFormProps {
 }
 
 const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState<Record<string, string>>({});
+  const { signIn, isLoading } = useAuth();
+  const [formData, setFormData] = useState<Record<string, string>>({
+    email: "",
+    uniqueCode: ""
+  });
 
   const handleChange = (key: string, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Accept all credentials with minimal validation
-    let routePath = "";
-
-    switch (role) {
-      case "Teacher":
-        routePath = "/teacher-dashboard";
-        break;
-      case "Student":
-        routePath = "/student-dashboard";
-        break;
-      case "Admin":
-        routePath = "/admin-dashboard";
-        break;
-      case "Parent/Mentor":
-        routePath = "/mentor-dashboard";
-        break;
+    
+    if (!formData.email || !formData.uniqueCode) {
+      toast.error("Please fill in all required fields");
+      return;
     }
 
-    // Store user data in sessionStorage for persistence
-    sessionStorage.setItem("user", JSON.stringify({ role, ...formData }));
-    navigate(routePath);
-    toast.success(`Logged in successfully as ${role}`);
+    try {
+      await signIn(formData.email, formData.uniqueCode, role);
+    } catch (error) {
+      console.error("Login error:", error);
+    }
   };
 
   return (
@@ -58,6 +49,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
             size="icon" 
             onClick={onBack} 
             className="text-white hover:bg-white/20"
+            disabled={isLoading}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -67,11 +59,35 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
       </CardHeader>
       <CardContent className="p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium">Email</label>
+            <Input 
+              id="email" 
+              type="email"
+              placeholder="Enter your email" 
+              onChange={(e) => handleChange("email", e.target.value)}
+              className="w-full"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
           {role === "Teacher" && (
             <>
               <div className="space-y-2">
+                <label htmlFor="uniqueCode" className="text-sm font-medium">Teacher Code</label>
+                <Input 
+                  id="uniqueCode" 
+                  placeholder="Enter your teacher code" 
+                  onChange={(e) => handleChange("uniqueCode", e.target.value)} 
+                  className="w-full"
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
                 <label htmlFor="subject" className="text-sm font-medium">Subject</label>
-                <Select onValueChange={(value) => handleChange("subject", value)}>
+                <Select onValueChange={(value) => handleChange("subject", value)} disabled={isLoading}>
                   <SelectTrigger id="subject" className="w-full">
                     <SelectValue placeholder="Select subject" />
                   </SelectTrigger>
@@ -84,20 +100,22 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <label htmlFor="code" className="text-sm font-medium">Class Code</label>
-                <Input 
-                  id="code" 
-                  placeholder="Enter class code" 
-                  onChange={(e) => handleChange("code", e.target.value)} 
-                  className="w-full"
-                />
-              </div>
             </>
           )}
 
           {role === "Student" && (
             <>
+              <div className="space-y-2">
+                <label htmlFor="uniqueCode" className="text-sm font-medium">Student Code</label>
+                <Input 
+                  id="uniqueCode" 
+                  placeholder="Enter your student code" 
+                  onChange={(e) => handleChange("uniqueCode", e.target.value)} 
+                  className="w-full"
+                  disabled={isLoading}
+                  required
+                />
+              </div>
               <div className="space-y-2">
                 <label htmlFor="name" className="text-sm font-medium">Name</label>
                 <Input 
@@ -105,6 +123,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
                   placeholder="Enter your name" 
                   onChange={(e) => handleChange("name", e.target.value)} 
                   className="w-full"
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -114,15 +133,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
                   placeholder="Enter your roll number" 
                   onChange={(e) => handleChange("rollNumber", e.target.value)} 
                   className="w-full"
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="studentCode" className="text-sm font-medium">Student Code</label>
-                <Input 
-                  id="studentCode" 
-                  placeholder="Enter your student code" 
-                  onChange={(e) => handleChange("studentCode", e.target.value)} 
-                  className="w-full"
+                  disabled={isLoading}
                 />
               </div>
             </>
@@ -130,32 +141,41 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
 
           {role === "Admin" && (
             <div className="space-y-2">
-              <label htmlFor="adminCode" className="text-sm font-medium">Admin Code</label>
+              <label htmlFor="uniqueCode" className="text-sm font-medium">Admin Code</label>
               <Input 
-                id="adminCode" 
+                id="uniqueCode" 
                 type="password" 
                 placeholder="Enter admin code" 
-                onChange={(e) => handleChange("adminCode", e.target.value)} 
+                onChange={(e) => handleChange("uniqueCode", e.target.value)} 
                 className="w-full"
+                disabled={isLoading}
+                required
               />
             </div>
           )}
 
           {role === "Parent/Mentor" && (
             <div className="space-y-2">
-              <label htmlFor="mentorCode" className="text-sm font-medium">Mentor Code</label>
+              <label htmlFor="uniqueCode" className="text-sm font-medium">Mentor Code</label>
               <Input 
-                id="mentorCode" 
+                id="uniqueCode" 
                 placeholder="Enter mentor code" 
-                onChange={(e) => handleChange("mentorCode", e.target.value)} 
+                onChange={(e) => handleChange("uniqueCode", e.target.value)} 
                 className="w-full"
+                disabled={isLoading}
+                required
               />
             </div>
           )}
         </form>
       </CardContent>
       <CardFooter className="flex justify-between p-6 pt-0">
-        <Button variant="outline" onClick={onBack} className="flex items-center gap-2">
+        <Button 
+          variant="outline" 
+          onClick={onBack} 
+          className="flex items-center gap-2"
+          disabled={isLoading}
+        >
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
@@ -163,9 +183,10 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
           onClick={handleSubmit} 
           className="w-full max-w-[200px] flex items-center gap-2" 
           style={{ backgroundColor: color.replace("bg-", "") }}
+          disabled={isLoading}
         >
           <LogIn className="h-4 w-4" />
-          Login
+          {isLoading ? "Logging in..." : "Login"}
         </Button>
       </CardFooter>
     </Card>
