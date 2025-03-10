@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Home, BookOpen, GraduationCap, Calendar, List, FileText } from "lucide-react";
+import { Home, BookOpen, GraduationCap, Calendar, List, FileText, Bell, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 interface StudentData {
@@ -90,30 +90,33 @@ const StudentDashboard = () => {
       {/* Main Content */}
       <main className="container mx-auto p-4 md:p-6">
         {/* Student Profile Card */}
-        <Card className="mb-6">
-          <CardHeader className="bg-blue-50">
-            <CardTitle className="flex items-center gap-2">
+        <Card className="mb-6 border-blue-100 shadow-md">
+          <CardHeader className="bg-blue-50 border-b border-blue-100">
+            <CardTitle className="flex items-center gap-2 text-blue-700">
               <GraduationCap className="h-5 w-5 text-blue-600" />
               Student Profile
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex flex-col">
+              <div className="flex flex-col p-3 bg-blue-50 rounded-lg">
                 <span className="text-sm text-gray-500">Name</span>
-                <span className="font-medium">{studentData.name}</span>
+                <span className="font-medium text-blue-800">{studentData.name}</span>
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col p-3 bg-blue-50 rounded-lg">
                 <span className="text-sm text-gray-500">Roll Number</span>
-                <span className="font-medium">{studentData.rollNumber}</span>
+                <span className="font-medium text-blue-800">{studentData.rollNumber}</span>
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col p-3 bg-blue-50 rounded-lg">
                 <span className="text-sm text-gray-500">Student Code</span>
-                <span className="font-medium">{studentData.studentCode}</span>
+                <span className="font-medium text-blue-800">{studentData.studentCode}</span>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Attendance Alert Card - Show only if below 75% */}
+        <AttendanceAlarmCard />
 
         {/* Tabs Content */}
         <Tabs defaultValue="attendance" className="space-y-4">
@@ -157,17 +160,56 @@ const StudentDashboard = () => {
   );
 };
 
+// New Attendance Alarm Card Component
+const AttendanceAlarmCard = () => {
+  // For demo purposes, hardcoding the attendance percentage to trigger the alarm
+  const attendancePercentage = 73;
+  const isAttendanceLow = attendancePercentage < 75;
+
+  if (!isAttendanceLow) return null;
+
+  return (
+    <Card className="mb-6 border-red-200 bg-red-50 shadow-md animate-pulse">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="bg-red-100 p-2 rounded-full">
+            <Bell className="h-6 w-6 text-red-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-red-700 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Attendance Alert
+            </h3>
+            <p className="text-red-600 mt-1">
+              Your current attendance is {attendancePercentage}%, which is below the required 75%. 
+              Please improve your attendance to avoid academic penalties.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
+                View Details
+              </Button>
+              <Button size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
+                Contact Teacher
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 // Helper Components
 const TabsListWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="border rounded-lg p-1 bg-white">
+  <div className="border rounded-lg p-1 bg-white shadow-sm">
     <TabsList className="grid grid-cols-4">{children}</TabsList>
   </div>
 );
 
 const AttendanceTable = () => (
-  <Card>
-    <CardHeader className="bg-blue-50">
-      <CardTitle className="text-lg">Attendance Record</CardTitle>
+  <Card className="border-blue-100 shadow-sm">
+    <CardHeader className="bg-blue-50 border-b border-blue-100">
+      <CardTitle className="text-lg text-blue-700">Attendance Record</CardTitle>
     </CardHeader>
     <CardContent className="p-6">
       <div className="overflow-x-auto">
@@ -186,26 +228,43 @@ const AttendanceTable = () => (
               { month: "January", present: 20, absent: 2, late: 1, percentage: "87%" },
               { month: "February", present: 18, absent: 0, late: 2, percentage: "90%" },
               { month: "March", present: 22, absent: 1, late: 0, percentage: "96%" },
+              { month: "April", present: 16, absent: 5, late: 3, percentage: "73%" },
             ].map((item, i) => (
               <tr key={i} className="border-b hover:bg-gray-50">
                 <td className="p-3 font-medium">{item.month}</td>
                 <td className="p-3 text-center text-green-600">{item.present}</td>
                 <td className="p-3 text-center text-red-600">{item.absent}</td>
                 <td className="p-3 text-center text-amber-600">{item.late}</td>
-                <td className="p-3 text-center font-medium">{item.percentage}</td>
+                <td className="p-3 text-center">
+                  <span className={`font-medium px-2 py-1 rounded-full text-xs ${
+                    parseFloat(item.percentage) < 75 
+                      ? "bg-red-100 text-red-700" 
+                      : "bg-green-100 text-green-700"
+                  }`}>
+                    {item.percentage}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+      
+      <div className="mt-6 p-4 border border-blue-100 rounded-lg bg-blue-50">
+        <h4 className="text-blue-800 font-medium mb-2">Attendance Requirements</h4>
+        <p className="text-blue-700 text-sm">
+          <span className="font-bold">75% attendance is mandatory</span> to be eligible for final examinations. 
+          Students falling below this threshold may face academic penalties.
+        </p>
       </div>
     </CardContent>
   </Card>
 );
 
 const MarksTable = () => (
-  <Card>
-    <CardHeader className="bg-blue-50">
-      <CardTitle className="text-lg">Academic Performance</CardTitle>
+  <Card className="border-blue-100 shadow-sm">
+    <CardHeader className="bg-blue-50 border-b border-blue-100">
+      <CardTitle className="text-lg text-blue-700">Academic Performance</CardTitle>
     </CardHeader>
     <CardContent className="p-6">
       <div className="overflow-x-auto">
@@ -232,7 +291,16 @@ const MarksTable = () => (
                 <td className="p-3 text-center">{item.midTerm}</td>
                 <td className="p-3 text-center">{item.finalExam}</td>
                 <td className="p-3 text-center">{item.assignment}</td>
-                <td className="p-3 text-center font-bold">{item.grade}</td>
+                <td className="p-3 text-center">
+                  <span className={`inline-flex justify-center min-w-[2rem] font-bold rounded-full px-2 py-1 text-xs
+                    ${item.grade.startsWith('A') ? 'bg-green-100 text-green-800' : 
+                      item.grade.startsWith('B') ? 'bg-blue-100 text-blue-800' : 
+                      item.grade.startsWith('C') ? 'bg-yellow-100 text-yellow-800' : 
+                      'bg-red-100 text-red-800'}`
+                  }>
+                    {item.grade}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -243,9 +311,9 @@ const MarksTable = () => (
 );
 
 const SyllabusContent = () => (
-  <Card>
-    <CardHeader className="bg-blue-50">
-      <CardTitle className="text-lg">Course Syllabus</CardTitle>
+  <Card className="border-blue-100 shadow-sm">
+    <CardHeader className="bg-blue-50 border-b border-blue-100">
+      <CardTitle className="text-lg text-blue-700">Course Syllabus</CardTitle>
     </CardHeader>
     <CardContent className="p-6">
       <div className="space-y-6">
@@ -290,9 +358,9 @@ const SyllabusContent = () => (
 );
 
 const ReportsContent = () => (
-  <Card>
-    <CardHeader className="bg-blue-50">
-      <CardTitle className="text-lg">Academic Reports</CardTitle>
+  <Card className="border-blue-100 shadow-sm">
+    <CardHeader className="bg-blue-50 border-b border-blue-100">
+      <CardTitle className="text-lg text-blue-700">Academic Reports</CardTitle>
     </CardHeader>
     <CardContent className="p-6">
       <div className="space-y-4">

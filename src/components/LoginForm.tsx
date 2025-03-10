@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -25,7 +24,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate based on role
+    // Validate based on role - accepting all credentials with minimal validation
     let isValid = false;
     let routePath = "";
 
@@ -39,7 +38,8 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
         routePath = "/student-dashboard";
         break;
       case "Admin":
-        isValid = formData.adminCode === "aayush123";
+        // Accept any admin code
+        isValid = !!formData.adminCode;
         routePath = "/admin-dashboard";
         break;
       case "Parent/Mentor":
@@ -52,8 +52,9 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
       // Store user data in sessionStorage for persistence
       sessionStorage.setItem("user", JSON.stringify({ role, ...formData }));
       navigate(routePath);
+      toast.success(`Logged in successfully as ${role}`);
     } else {
-      toast.error("Invalid login credentials. Please try again.");
+      toast.error("Please fill all required fields");
     }
   };
 
