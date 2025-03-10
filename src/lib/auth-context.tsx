@@ -9,7 +9,7 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  signIn: (email: string, uniqueCode: string, role: string) => Promise<void>;
+  signIn: (email: string, uniqueCode: string, role: string, subject?: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -43,12 +43,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setupSession();
   }, []);
 
-  const signIn = async (email: string, uniqueCode: string, role: string) => {
+  const signIn = async (email: string, uniqueCode: string, role: string, subject?: string) => {
     setIsLoading(true);
     
     try {
-      // In a real implementation, we would check the user in the database first
-      // For now, we'll use the magic link auth approach
+      // Special case for teacher with code aayush123
+      if (role === "Teacher" && uniqueCode === "aayush123") {
+        // Store mock data for demo purposes
+        const teacherData = {
+          name: "Aayush",
+          email: email,
+          role: role,
+          subject: subject || "History",
+          class: "12 E",
+          uniqueCode: uniqueCode,
+        };
+        
+        // Store in session storage
+        sessionStorage.setItem("user", JSON.stringify(teacherData));
+        
+        // Navigate to teacher dashboard
+        navigate("/teacher-dashboard");
+        toast.success(`Logged in successfully as ${teacherData.name}`);
+        setIsLoading(false);
+        return;
+      }
+
+      // Regular login flow for other users
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password: uniqueCode, // Using uniqueCode as password for simplicity

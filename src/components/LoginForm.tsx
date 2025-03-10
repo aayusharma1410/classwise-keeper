@@ -18,7 +18,8 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
   const { signIn, isLoading } = useAuth();
   const [formData, setFormData] = useState<Record<string, string>>({
     email: "",
-    uniqueCode: ""
+    uniqueCode: "",
+    subject: ""
   });
 
   const handleChange = (key: string, value: string) => {
@@ -34,7 +35,12 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
     }
 
     try {
-      await signIn(formData.email, formData.uniqueCode, role);
+      await signIn(
+        formData.email, 
+        formData.uniqueCode, 
+        role,
+        role === "Teacher" ? formData.subject : undefined
+      );
     } catch (error) {
       console.error("Login error:", error);
     }

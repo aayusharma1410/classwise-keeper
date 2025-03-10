@@ -4,8 +4,8 @@ import { CheckCircle, XCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-// Sample student data
-const students = [
+// Default student data
+const defaultStudents = [
   { id: 1, name: "John Doe", roll: "CS2021001", avatar: "JD" },
   { id: 2, name: "Jane Smith", roll: "CS2021002", avatar: "JS" },
   { id: 3, name: "Michael Johnson", roll: "CS2021003", avatar: "MJ" },
@@ -16,13 +16,27 @@ const students = [
   { id: 8, name: "Jennifer Martinez", roll: "CS2021008", avatar: "JM" },
 ];
 
+interface Student {
+  id: number;
+  name: string;
+  roll: string;
+  avatar: string;
+}
+
 interface AttendanceStatus {
   [key: number]: "present" | "absent" | "late" | null;
 }
 
-const AttendanceTable = () => {
+interface AttendanceTableProps {
+  specialStudents?: Student[];
+}
+
+const AttendanceTable = ({ specialStudents }: AttendanceTableProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [attendance, setAttendance] = useState<AttendanceStatus>({});
+  
+  // Use special students if provided, otherwise use default
+  const students = specialStudents || defaultStudents;
 
   const filteredStudents = students.filter(student => 
     student.name.toLowerCase().includes(searchTerm.toLowerCase()) || 

@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Users, 
@@ -25,18 +26,58 @@ import { useToast } from "@/hooks/use-toast";
 import AttendanceTable from "@/components/AttendanceTable";
 import AttendanceChart from "@/components/AttendanceChart";
 
+interface TeacherData {
+  name: string;
+  email: string;
+  role: string;
+  subject?: string;
+  class?: string;
+  uniqueCode?: string;
+}
+
 const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
   const [attendanceFilter, setAttendanceFilter] = useState("daily");
+  const [teacherData, setTeacherData] = useState<TeacherData | null>(null);
+
+  useEffect(() => {
+    // Retrieve teacher data from session storage
+    const userData = sessionStorage.getItem("user");
+    if (userData) {
+      const parsedData = JSON.parse(userData);
+      setTeacherData(parsedData);
+      
+      // Pre-select the class and subject if available
+      if (parsedData.class) {
+        setSelectedClass(parsedData.class);
+      }
+      
+      if (parsedData.subject) {
+        setSelectedSubject(parsedData.subject);
+      }
+    }
+  }, []);
+
+  // Mock data for Class 12 E students
+  const class12EStudents = [
+    { id: 1, name: "Rahul Sharma", roll: "12E001", avatar: "RS" },
+    { id: 2, name: "Priya Patel", roll: "12E002", avatar: "PP" },
+    { id: 3, name: "Aditya Singh", roll: "12E003", avatar: "AS" },
+    { id: 4, name: "Neha Gupta", roll: "12E004", avatar: "NG" },
+    { id: 5, name: "Sanjay Verma", roll: "12E005", avatar: "SV" },
+    { id: 6, name: "Ananya Mishra", roll: "12E006", avatar: "AM" },
+    { id: 7, name: "Vikram Reddy", roll: "12E007", avatar: "VR" },
+    { id: 8, name: "Meera Khanna", roll: "12E008", avatar: "MK" },
+  ];
 
   const subjects = [
     { id: "1", name: "Introduction to Python", code: "CS101" },
     { id: "2", name: "Data Structures", code: "CS202" },
     { id: "3", name: "Web Development", code: "CS303" },
-    { id: "4", name: "Machine Learning", code: "CS404" },
+    { id: "4", name: "History", code: "HS101" },
     { id: "5", name: "Database Management", code: "CS505" },
     { id: "6", name: "Software Engineering", code: "CS606" },
   ];
@@ -45,7 +86,7 @@ const TeacherDashboard = () => {
     { id: "1", name: "Computer Science - Year 1" },
     { id: "2", name: "Computer Science - Year 2" },
     { id: "3", name: "Computer Science - Year 3" },
-    { id: "4", name: "Computer Science - Year 4" },
+    { id: "4", name: "12 E" },
   ];
 
   const handleDownloadReport = () => {
@@ -84,7 +125,7 @@ const TeacherDashboard = () => {
               <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
                 Teacher Dashboard
               </h1>
-              <p className="text-gray-600">Welcome, Professor Anderson</p>
+              <p className="text-gray-600">Welcome, {teacherData?.name || "Professor"}</p>
             </div>
           </div>
           <div className="flex space-x-3">
@@ -110,7 +151,7 @@ const TeacherDashboard = () => {
         {/* Subject and Class Selection */}
         <Card className="mb-6 bg-white">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 pb-4">
-            <CardTitle className="text-xl font-semibold text-gray-800">Select Subject & Class</CardTitle>
+            <CardTitle className="text-xl font-semibold text-gray-800">Class Information</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid gap-6 sm:grid-cols-2">
@@ -122,7 +163,7 @@ const TeacherDashboard = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {subjects.map((subject) => (
-                      <SelectItem key={subject.id} value={subject.id}>
+                      <SelectItem key={subject.id} value={subject.name}>
                         {subject.name} ({subject.code})
                       </SelectItem>
                     ))}
@@ -137,7 +178,7 @@ const TeacherDashboard = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {classes.map((classItem) => (
-                      <SelectItem key={classItem.id} value={classItem.id}>
+                      <SelectItem key={classItem.id} value={classItem.name}>
                         {classItem.name}
                       </SelectItem>
                     ))}
@@ -154,7 +195,11 @@ const TeacherDashboard = () => {
           <div className="lg:col-span-2">
             <Card className="bg-white">
               <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100 pb-4">
-                <CardTitle className="text-xl font-semibold text-gray-800">Student Attendance</CardTitle>
+                <CardTitle className="text-xl font-semibold text-gray-800">
+                  {teacherData?.uniqueCode === "aayush123" ? 
+                    "Class 12 E - History Students" : 
+                    "Student Attendance"}
+                </CardTitle>
                 <div className="flex items-center space-x-2">
                   <Select value={attendanceFilter} onValueChange={setAttendanceFilter}>
                     <SelectTrigger className="w-[180px]">
@@ -174,7 +219,11 @@ const TeacherDashboard = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-6">
-                <AttendanceTable />
+                {teacherData?.uniqueCode === "aayush123" ? (
+                  <AttendanceTable specialStudents={class12EStudents} />
+                ) : (
+                  <AttendanceTable />
+                )}
                 <div className="mt-4 flex justify-end space-x-3">
                   <Button variant="outline" className="border-blue-200 hover:bg-blue-50 hover:text-blue-600">
                     Reset
@@ -228,7 +277,7 @@ const TeacherDashboard = () => {
                     <div className="flex items-center">
                       <Users className="mr-2 h-5 w-5 text-amber-500" />
                       <div>
-                        <p className="font-medium text-amber-800">John Doe</p>
+                        <p className="font-medium text-amber-800">Rahul Sharma</p>
                         <p className="text-xs text-amber-700">Attendance: 65%</p>
                       </div>
                     </div>
@@ -240,7 +289,7 @@ const TeacherDashboard = () => {
                     <div className="flex items-center">
                       <Users className="mr-2 h-5 w-5 text-red-500" />
                       <div>
-                        <p className="font-medium text-red-800">Jane Smith</p>
+                        <p className="font-medium text-red-800">Ananya Mishra</p>
                         <p className="text-xs text-red-700">Attendance: 48%</p>
                       </div>
                     </div>
@@ -252,7 +301,7 @@ const TeacherDashboard = () => {
                     <div className="flex items-center">
                       <Users className="mr-2 h-5 w-5 text-amber-500" />
                       <div>
-                        <p className="font-medium text-amber-800">Alex Johnson</p>
+                        <p className="font-medium text-amber-800">Vikram Reddy</p>
                         <p className="text-xs text-amber-700">Attendance: 72%</p>
                       </div>
                     </div>
