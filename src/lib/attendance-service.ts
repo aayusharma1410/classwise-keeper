@@ -5,7 +5,6 @@ export interface AttendanceRecord {
   id?: number;
   student_id: string;
   class_id: string;
-  subject_id: string;
   date: string;
   status: 'present' | 'absent' | 'late';
   teacher_id: string;
@@ -14,13 +13,17 @@ export interface AttendanceRecord {
 export const saveAttendance = async (attendanceRecords: Omit<AttendanceRecord, 'id'>[]) => {
   try {
     // Make sure we're sending string IDs, not numbers
-    const formattedRecords = attendanceRecords.map(record => ({
-      ...record,
-      student_id: String(record.student_id),
-      class_id: String(record.class_id),
-      subject_id: String(record.subject_id),
-      teacher_id: String(record.teacher_id)
-    }));
+    const formattedRecords = attendanceRecords.map(record => {
+      // Remove subject_id as it doesn't exist in the database
+      const { subject_id, ...recordWithoutSubject } = record as any;
+      
+      return {
+        ...recordWithoutSubject,
+        student_id: String(record.student_id),
+        class_id: String(record.class_id),
+        teacher_id: String(record.teacher_id)
+      };
+    });
     
     console.log('Saving attendance records:', formattedRecords);
     
@@ -28,7 +31,7 @@ export const saveAttendance = async (attendanceRecords: Omit<AttendanceRecord, '
       .from('attendance')
       .upsert(
         formattedRecords,
-        { onConflict: 'student_id,date,subject_id', ignoreDuplicates: false }
+        { onConflict: 'student_id,date', ignoreDuplicates: false }
       );
     
     if (error) {

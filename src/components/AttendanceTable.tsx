@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { CheckCircle, XCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -81,11 +82,10 @@ const AttendanceTable = ({
       setIsSaving(true);
       const today = new Date().toISOString().split('T')[0];
       
-      // Prepare attendance records for saving
+      // Prepare attendance records for saving, omitting subject_id
       const attendanceRecords = Object.entries(attendance).map(([studentId, status]) => ({
         student_id: String(studentId),
         class_id: String(classId),
-        subject_id: String(subjectId),
         date: today,
         status: status || 'absent', // Default to absent if not set
         teacher_id: String(teacherId)
