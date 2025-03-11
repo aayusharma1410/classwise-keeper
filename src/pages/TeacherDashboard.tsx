@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -11,7 +10,8 @@ import {
   CheckCircle,
   XCircle,
   ArrowLeft,
-  Home
+  Home,
+  Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import AttendanceTable from "@/components/AttendanceTable";
 import AttendanceChart from "@/components/AttendanceChart";
 import { supabase } from "@/lib/supabase";
+import { uploadSampleClassCodes } from "@/lib/upload-class-codes";
 
 interface TeacherData {
   name: string;
@@ -45,6 +46,7 @@ const TeacherDashboard = () => {
   const [attendanceFilter, setAttendanceFilter] = useState("daily");
   const [teacherData, setTeacherData] = useState<TeacherData | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     // Retrieve teacher data from session storage
@@ -100,7 +102,6 @@ const TeacherDashboard = () => {
   };
 
   const handleAttendanceSaved = () => {
-    // Refresh the component to show updated data
     setRefreshKey(prev => prev + 1);
     
     toast({
@@ -113,21 +114,49 @@ const TeacherDashboard = () => {
     navigate("/");
   };
 
-  // Get subject and class IDs for attendance records
   const getSubjectId = () => {
     const subject = subjects.find(s => s.name === selectedSubject);
-    return subject?.id || "HS101"; // Default to History for Aayush's case
+    return subject?.id || "HS101";
   };
 
   const getClassId = () => {
     const classItem = classes.find(c => c.name === selectedClass);
-    return classItem?.id || "4"; // Default to Class 12 E for Aayush's case
+    return classItem?.id || "4";
+  };
+
+  const handleUploadClassCodes = async () => {
+    setIsUploading(true);
+    
+    try {
+      const result = await uploadSampleClassCodes();
+      
+      if (result.success) {
+        toast({
+          title: "Upload Successful",
+          description: "Class codes have been uploaded to the database",
+        });
+      } else {
+        toast({
+          title: "Upload Failed",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error uploading class codes:", error);
+      toast({
+        title: "Upload Error",
+        description: "An unexpected error occurred while uploading class codes",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 p-6 md:p-8">
       <div className="mx-auto max-w-7xl">
-        {/* Header */}
         <div className="mb-8 flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
           <div className="flex items-center gap-4">
             <Button 
@@ -158,14 +187,31 @@ const TeacherDashboard = () => {
               <Bell className="h-4 w-4" />
               <span>Notifications</span>
             </Button>
-            <Button className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700">
+            <Button className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700" onClick={handleDownloadReport}>
               <Download className="h-4 w-4" />
               <span>Export Data</span>
             </Button>
           </div>
         </div>
 
-        {/* Subject and Class Selection */}
+        <Card className="mb-6 bg-white">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 pb-4">
+            <CardTitle className="text-xl font-semibold text-gray-800">Admin Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="flex flex-wrap gap-4">
+              <Button 
+                onClick={handleUploadClassCodes} 
+                disabled={isUploading}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                <span>{isUploading ? "Uploading..." : "Upload Class Codes"}</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="mb-6 bg-white">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 pb-4">
             <CardTitle className="text-xl font-semibold text-gray-800">Class Information</CardTitle>
@@ -206,9 +252,7 @@ const TeacherDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Main Content - Two Columns on Desktop */}
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Attendance Table - Takes up 2/3 of the space */}
           <div className="lg:col-span-2">
             <Card className="bg-white">
               <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100 pb-4">
@@ -258,9 +302,7 @@ const TeacherDashboard = () => {
             </Card>
           </div>
 
-          {/* Right Sidebar - Takes up 1/3 of the space */}
           <div className="space-y-6">
-            {/* Attendance Statistics */}
             <Card className="bg-white">
               <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 pb-4">
                 <CardTitle className="text-xl font-semibold text-gray-800">Attendance Overview</CardTitle>
@@ -288,7 +330,6 @@ const TeacherDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Low Attendance Alerts */}
             <Card className="bg-white">
               <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 pb-4">
                 <CardTitle className="text-xl font-semibold text-gray-800">Low Attendance Alerts</CardTitle>
