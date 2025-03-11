@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 
 export interface AttendanceRecord {
@@ -7,21 +6,19 @@ export interface AttendanceRecord {
   class_id: string;
   date: string;
   status: 'present' | 'absent' | 'late';
-  teacher_id: string;
 }
 
 export const saveAttendance = async (attendanceRecords: Omit<AttendanceRecord, 'id'>[]) => {
   try {
     // Make sure we're sending string IDs, not numbers
     const formattedRecords = attendanceRecords.map(record => {
-      // Remove subject_id as it doesn't exist in the database
-      const { subject_id, ...recordWithoutSubject } = record as any;
+      // Remove teacher_id as it doesn't exist in the database
+      const { teacher_id, ...recordWithoutTeacher } = record as any;
       
       return {
-        ...recordWithoutSubject,
+        ...recordWithoutTeacher,
         student_id: String(record.student_id),
-        class_id: String(record.class_id),
-        teacher_id: String(record.teacher_id)
+        class_id: String(record.class_id)
       };
     });
     
