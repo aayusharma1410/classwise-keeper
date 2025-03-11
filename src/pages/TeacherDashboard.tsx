@@ -49,13 +49,11 @@ const TeacherDashboard = () => {
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-    // Retrieve teacher data from session storage
     const userData = sessionStorage.getItem("user");
     if (userData) {
       const parsedData = JSON.parse(userData);
       setTeacherData(parsedData);
       
-      // Pre-select the class and subject if available
       if (parsedData.class) {
         setSelectedClass(parsedData.class);
       }
@@ -66,7 +64,6 @@ const TeacherDashboard = () => {
     }
   }, []);
 
-  // Mock data for Class 12 E students
   const class12EStudents = [
     { id: 1, name: "Rahul Sharma", roll: "12E001", avatar: "RS" },
     { id: 2, name: "Priya Patel", roll: "12E002", avatar: "PP" },
