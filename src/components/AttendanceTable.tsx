@@ -1,10 +1,9 @@
-
 import { useState } from "react";
 import { CheckCircle, XCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { saveAttendance } from "@/lib/attendance-service";
+import { saveAttendance, AttendanceRecord } from "@/lib/attendance-service";
 
 // Default student data
 const defaultStudents = [
@@ -84,12 +83,12 @@ const AttendanceTable = ({
       
       // Prepare attendance records for saving
       const attendanceRecords = Object.entries(attendance).map(([studentId, status]) => ({
-        student_id: studentId,
-        class_id: classId,
-        subject_id: subjectId,
+        student_id: String(studentId),
+        class_id: String(classId),
+        subject_id: String(subjectId),
         date: today,
         status: status || 'absent', // Default to absent if not set
-        teacher_id: teacherId
+        teacher_id: String(teacherId)
       }));
       
       if (attendanceRecords.length === 0) {
@@ -102,6 +101,7 @@ const AttendanceTable = ({
         return;
       }
       
+      console.log('Sending attendance records:', attendanceRecords);
       const result = await saveAttendance(attendanceRecords);
       
       if (result.success) {
@@ -119,6 +119,7 @@ const AttendanceTable = ({
           description: "There was a problem saving the attendance records",
           variant: "destructive"
         });
+        console.error('Save attendance error:', result.error);
       }
     } catch (error) {
       console.error("Error saving attendance:", error);

@@ -13,14 +13,30 @@ export interface AttendanceRecord {
 
 export const saveAttendance = async (attendanceRecords: Omit<AttendanceRecord, 'id'>[]) => {
   try {
+    // Make sure we're sending string IDs, not numbers
+    const formattedRecords = attendanceRecords.map(record => ({
+      ...record,
+      student_id: String(record.student_id),
+      class_id: String(record.class_id),
+      subject_id: String(record.subject_id),
+      teacher_id: String(record.teacher_id)
+    }));
+    
+    console.log('Saving attendance records:', formattedRecords);
+    
     const { data, error } = await supabase
       .from('attendance')
       .upsert(
-        attendanceRecords,
-        { onConflict: 'student_id, date, subject_id', ignoreDuplicates: false }
+        formattedRecords,
+        { onConflict: 'student_id,date,subject_id', ignoreDuplicates: false }
       );
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error saving attendance:', error);
+      throw error;
+    }
+    
+    console.log('Attendance saved successfully:', data);
     return { success: true, data };
   } catch (error) {
     console.error('Error saving attendance:', error);
