@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import { ClassCode, saveClassCodes } from './class-code-service';
+import { ClassCode, saveClassCodes, replaceAllClassCodes } from './class-code-service';
 
 // Parse the CSV data into ClassCode objects
 export const parseClassCodeData = (csvData: string): Omit<ClassCode, 'id'>[] => {
@@ -23,14 +23,19 @@ export const parseClassCodeData = (csvData: string): Omit<ClassCode, 'id'>[] => 
 };
 
 // Upload class codes to the Supabase database
-export const uploadClassCodes = async (csvData: string) => {
+export const uploadClassCodes = async (csvData: string, replace: boolean = false) => {
   try {
     console.log('Parsing class code data...');
     const classCodes = parseClassCodeData(csvData);
     console.log('Parsed class codes:', classCodes);
     
     // Save the class codes to the database
-    const result = await saveClassCodes(classCodes);
+    let result;
+    if (replace) {
+      result = await replaceAllClassCodes(classCodes);
+    } else {
+      result = await saveClassCodes(classCodes);
+    }
     
     if (result.success) {
       console.log('Class codes uploaded successfully');
@@ -43,6 +48,18 @@ export const uploadClassCodes = async (csvData: string) => {
     console.error('Error uploading class codes:', error);
     return { success: false, message: 'Error uploading class codes', error };
   }
+};
+
+// Upload function for the data provided by the user
+export const uploadUserClassCodes = async (replace: boolean = true) => {
+  const userData = `S.NO,YEAR,SECTION ,CODE
+1,2,A,2025A-45S
+2,2,B,5946B-84G
+3,2,C,7944C-98R
+4,2,D,3596D-74W
+5,2,E,1464E-78Q`;
+
+  return await uploadClassCodes(userData, replace);
 };
 
 // Direct upload function for the provided data

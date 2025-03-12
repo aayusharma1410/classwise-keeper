@@ -11,7 +11,8 @@ import {
   XCircle,
   ArrowLeft,
   Home,
-  Upload
+  Upload,
+  Database
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +27,8 @@ import { useToast } from "@/hooks/use-toast";
 import AttendanceTable from "@/components/AttendanceTable";
 import AttendanceChart from "@/components/AttendanceChart";
 import { supabase } from "@/lib/supabase";
-import { uploadSampleClassCodes } from "@/lib/upload-class-codes";
+import { uploadSampleClassCodes, uploadUserClassCodes } from "@/lib/upload-class-codes";
+import { ensureClassCodesTableExists } from "@/lib/class-code-service";
 
 interface TeacherData {
   name: string;
@@ -47,6 +49,7 @@ const TeacherDashboard = () => {
   const [teacherData, setTeacherData] = useState<TeacherData | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [isCreatingTable, setIsCreatingTable] = useState(false);
 
   useEffect(() => {
     const userData = sessionStorage.getItem("user");
@@ -151,6 +154,38 @@ const TeacherDashboard = () => {
     }
   };
 
+  const handleCreateTableAndUploadCodes = async () => {
+    setIsCreatingTable(true);
+    
+    try {
+      const tableCheck = await ensureClassCodesTableExists();
+      
+      const result = await uploadUserClassCodes(true);
+      
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Class codes table is ready and data has been uploaded",
+        });
+      } else {
+        toast({
+          title: "Operation Failed",
+          description: result.message || "Failed to upload class codes",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating table and uploading codes:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingTable(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 p-6 md:p-8">
       <div className="mx-auto max-w-7xl">
@@ -204,6 +239,17 @@ const TeacherDashboard = () => {
               >
                 <Upload className="mr-2 h-4 w-4" />
                 <span>{isUploading ? "Uploading..." : "Upload Class Codes"}</span>
+              </Button>
+              
+              <Button 
+                onClick={handleCreateTableAndUploadCodes} 
+                disabled={isCreatingTable}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                <Database className="mr-2 h-4 w-4" />
+                <span>
+                  {isCreatingTable ? "Processing..." : "Create Table & Upload Class Codes"}
+                </span>
               </Button>
             </div>
           </CardContent>
