@@ -1,6 +1,83 @@
-
 import { supabase } from './supabase';
 import { ClassCode, saveClassCodes, replaceAllClassCodes } from './class-code-service';
+
+// Parse the student data CSV into structured objects
+export const parseStudentData = (csvData: string) => {
+  const lines = csvData.trim().split('\n');
+  
+  // Find where the actual data starts (after headers)
+  const dataStartIndex = lines.findIndex(line => line.startsWith('1,'));
+  
+  if (dataStartIndex === -1) return [];
+  
+  // Get subject mappings from the first few rows
+  const subjects = [];
+  for (let i = dataStartIndex; i < dataStartIndex + 6; i++) {
+    const [, subject, code] = lines[i].split(',').map(item => item?.trim()).filter(Boolean);
+    if (subject && code) {
+      subjects.push({ subject, code });
+    }
+  }
+  
+  // Parse student records
+  const students = [];
+  for (let i = dataStartIndex; i < lines.length; i++) {
+    const columns = lines[i].split(',').map(item => item?.trim()).filter(Boolean);
+    if (columns.length >= 3) {
+      const studentCode = columns[3] || '';
+      const parentCode = columns[4] || '';
+      const studentName = columns[2] || '';
+      
+      if (studentName && studentCode && parentCode) {
+        students.push({
+          name: studentName,
+          student_code: studentCode,
+          parent_code: parentCode,
+          section: 'A', // Hardcoded for Section A
+          subjects: subjects.map(s => ({ ...s }))
+        });
+      }
+    }
+  }
+  
+  return { subjects, students };
+};
+
+// Upload student data to Supabase
+export const uploadStudentData = async (csvData: string) => {
+  try {
+    console.log('Parsing student data...');
+    const { subjects, students } = parseStudentData(csvData);
+    console.log('Parsed students:', students.length);
+    console.log('Parsed subjects:', subjects);
+    
+    // First, ensure the tables exist and are properly structured
+    const { error: tableError } = await supabase.from('students_section_a').select().limit(1).catch(() => ({ error: true }));
+    
+    if (tableError) {
+      // Create the table if it doesn't exist
+      await supabase.rpc('create_students_table');
+    }
+    
+    // Insert or update the student records
+    const { error: insertError } = await supabase
+      .from('students_section_a')
+      .upsert(students, {
+        onConflict: 'student_code',
+        ignoreDuplicates: false
+      });
+    
+    if (insertError) {
+      console.error('Error uploading student data:', insertError);
+      return { success: false, message: 'Failed to upload student data', error: insertError };
+    }
+    
+    return { success: true, message: 'Student data uploaded successfully' };
+  } catch (error) {
+    console.error('Error processing student data:', error);
+    return { success: false, message: 'Error processing student data', error };
+  }
+};
 
 // Parse the CSV data into ClassCode objects
 export const parseClassCodeData = (csvData: string): Omit<ClassCode, 'id'>[] => {
