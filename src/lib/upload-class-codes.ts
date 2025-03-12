@@ -26,29 +26,39 @@ export const parseStudentData = (csvData: string): StudentData => {
   const lines = csvData.trim().split('\n');
   
   // Find where the actual data starts (after headers)
-  const dataStartIndex = lines.findIndex(line => line.startsWith('1,'));
+  const dataStartIndex = lines.findIndex(line => line.includes('S.NO,SUBJECT,CODE,STUDENT NAME'));
   
   if (dataStartIndex === -1) return { subjects: [], students: [] };
   
-  // Get subject mappings from the first few rows
-  const subjects: Subject[] = [];
-  for (let i = dataStartIndex; i < dataStartIndex + 6; i++) {
-    if (i < lines.length) {
-      const [, subject, code] = lines[i].split(',').map(item => item?.trim()).filter(Boolean);
-      if (subject && code) {
-        subjects.push({ subject, code });
-      }
-    }
-  }
+  // Define fixed subjects based on the image provided
+  const subjects: Subject[] = [
+    { subject: 'DMS', code: '8253A-67K' },
+    { subject: 'TOC', code: '3135B-23X' },
+    { subject: 'DCCN', code: '9402C-11M' },
+    { subject: 'DBMS', code: '2856D-96T' },
+    { subject: 'JAVA', code: '7361E-39J' },
+    { subject: 'MPI', code: '5247F-72L' }
+  ];
   
   // Parse student records
   const students: Student[] = [];
-  for (let i = dataStartIndex; i < lines.length; i++) {
+  for (let i = dataStartIndex + 1; i < lines.length; i++) {
     const columns = lines[i].split(',').map(item => item?.trim()).filter(Boolean);
     if (columns.length >= 3) {
-      const studentCode = columns[3] || '';
-      const parentCode = columns[4] || '';
-      const studentName = columns[2] || '';
+      // CSV format: S.NO, SUBJECT, CODE, STUDENT NAME, CODE, PARENT CODE
+      // When mapped to array, for student rows it becomes:
+      // [0] = S.NO, [1] = NAME if no subject/code, otherwise SUBJECT, 
+      // [2] = CODE or NAME depending on position, etc.
+      
+      let studentNameIdx = 2;
+      if (columns.length > 5) {
+        // Full row with subject info
+        studentNameIdx = 3;
+      }
+      
+      const studentName = columns[studentNameIdx] || '';
+      const studentCode = columns[studentNameIdx + 1] || '';
+      const parentCode = columns[studentNameIdx + 2] || '';
       
       if (studentName && studentCode && parentCode) {
         students.push({
@@ -69,20 +79,28 @@ export const parseStudentData = (csvData: string): StudentData => {
 export const uploadStudentData = async (csvData: string) => {
   try {
     console.log('Parsing student data...');
-    const { subjects, students } = parseStudentData(csvData);
+    const data = parseStudentData(csvData);
+    const { subjects, students } = data;
+    
     console.log('Parsed students:', students.length);
-    console.log('Parsed subjects:', subjects);
+    console.log('Using subjects:', subjects);
     
     // First, ensure the tables exist and are properly structured
     try {
-      const { error: tableError } = await supabase.from('students_section_a').select().limit(1);
+      // Check if the students_section_a table exists
+      const { error: tableError } = await supabase
+        .from('students_section_a')
+        .select('student_code')
+        .limit(1);
       
       if (tableError) {
+        console.log('Table does not exist or other error:', tableError);
         // Create the table if it doesn't exist
         await supabase.rpc('create_students_table');
       }
     } catch (error) {
-      // If the table doesn't exist, create it
+      console.log('Error checking table existence:', error);
+      // If there's an error, try to create the table
       await supabase.rpc('create_students_table');
     }
     
@@ -97,6 +115,33 @@ export const uploadStudentData = async (csvData: string) => {
     if (insertError) {
       console.error('Error uploading student data:', insertError);
       return { success: false, message: 'Failed to upload student data', error: insertError };
+    }
+    
+    // Also store subjects in a separate table for reference
+    try {
+      const { error: subjectTableError } = await supabase
+        .from('subjects')
+        .select('subject')
+        .limit(1);
+      
+      if (subjectTableError) {
+        // Create subjects table if it doesn't exist
+        await supabase.rpc('create_subjects_table');
+      }
+      
+      // Insert subjects
+      const { error: subjectInsertError } = await supabase
+        .from('subjects')
+        .upsert(subjects, {
+          onConflict: 'subject',
+          ignoreDuplicates: false
+        });
+      
+      if (subjectInsertError) {
+        console.warn('Warning: Could not store subject data:', subjectInsertError);
+      }
+    } catch (error) {
+      console.warn('Warning: Error with subjects table:', error);
     }
     
     return { success: true, message: 'Student data uploaded successfully' };
