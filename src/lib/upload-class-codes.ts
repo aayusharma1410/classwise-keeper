@@ -119,13 +119,15 @@ export const uploadStudentData = async (csvData: string) => {
     
     // Also store subjects in a separate table for reference
     try {
-      const { error: subjectTableError } = await supabase
+      // Check if subjects table exists
+      let { error: subjectTableError } = await supabase
         .from('subjects')
         .select('subject')
         .limit(1);
       
       if (subjectTableError) {
-        // Create subjects table if it doesn't exist
+        console.log('Subjects table does not exist, creating...');
+        // Create subjects table via RPC call
         await supabase.rpc('create_subjects_table');
       }
       

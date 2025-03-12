@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import AttendanceTable from "@/components/AttendanceTable";
 import AttendanceChart from "@/components/AttendanceChart";
 import { supabase } from "@/lib/supabase";
-import { uploadSampleClassCodes, uploadUserClassCodes } from "@/lib/upload-class-codes";
+import { uploadSampleClassCodes, uploadUserClassCodes, uploadAllData } from "@/lib/upload-class-codes";
 import { ensureClassCodesTableExists } from "@/lib/class-code-service";
 
 interface TeacherData {
@@ -79,12 +79,12 @@ const TeacherDashboard = () => {
   ];
 
   const subjects = [
-    { id: "1", name: "Introduction to Python", code: "CS101" },
-    { id: "2", name: "Data Structures", code: "CS202" },
-    { id: "3", name: "Web Development", code: "CS303" },
-    { id: "4", name: "History", code: "HS101" },
-    { id: "5", name: "Database Management", code: "CS505" },
-    { id: "6", name: "Software Engineering", code: "CS606" },
+    { id: "1", name: "DMS", code: "8253A-67K" },
+    { id: "2", name: "TOC", code: "3135B-23X" },
+    { id: "3", name: "DCCN", code: "9402C-11M" },
+    { id: "4", name: "DBMS", code: "2856D-96T" },
+    { id: "5", name: "JAVA", code: "7361E-39J" },
+    { id: "6", name: "MPI", code: "5247F-72L" },
   ];
 
   const classes = [
@@ -92,6 +92,7 @@ const TeacherDashboard = () => {
     { id: "2", name: "Computer Science - Year 2" },
     { id: "3", name: "Computer Science - Year 3" },
     { id: "4", name: "12 E" },
+    { id: "5", name: "Section A" },
   ];
 
   const handleDownloadReport = () => {
@@ -186,6 +187,36 @@ const TeacherDashboard = () => {
     }
   };
 
+  const handleUploadAllData = async () => {
+    setIsUploading(true);
+    
+    try {
+      const result = await uploadAllData();
+      
+      if (result.classCodesSuccess && result.sectionASuccess) {
+        toast({
+          title: "Upload Successful",
+          description: "All data has been uploaded to the database",
+        });
+      } else {
+        toast({
+          title: "Upload Partially Failed",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error uploading data:", error);
+      toast({
+        title: "Upload Error",
+        description: "An unexpected error occurred while uploading data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 p-6 md:p-8">
       <div className="mx-auto max-w-7xl">
@@ -250,6 +281,15 @@ const TeacherDashboard = () => {
                 <span>
                   {isCreatingTable ? "Processing..." : "Create Table & Upload Class Codes"}
                 </span>
+              </Button>
+
+              <Button 
+                onClick={handleUploadAllData} 
+                disabled={isUploading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Database className="mr-2 h-4 w-4" />
+                <span>{isUploading ? "Uploading..." : "Upload All Data"}</span>
               </Button>
             </div>
           </CardContent>
