@@ -1,26 +1,48 @@
+
 import { supabase } from './supabase';
 import { ClassCode, saveClassCodes, replaceAllClassCodes } from './class-code-service';
 
+// Define types for our data structures
+interface Subject {
+  subject: string;
+  code: string;
+}
+
+interface Student {
+  name: string;
+  student_code: string;
+  parent_code: string;
+  section: string;
+  subjects: Subject[];
+}
+
+interface StudentData {
+  subjects: Subject[];
+  students: Student[];
+}
+
 // Parse the student data CSV into structured objects
-export const parseStudentData = (csvData: string) => {
+export const parseStudentData = (csvData: string): StudentData => {
   const lines = csvData.trim().split('\n');
   
   // Find where the actual data starts (after headers)
   const dataStartIndex = lines.findIndex(line => line.startsWith('1,'));
   
-  if (dataStartIndex === -1) return [];
+  if (dataStartIndex === -1) return { subjects: [], students: [] };
   
   // Get subject mappings from the first few rows
-  const subjects = [];
+  const subjects: Subject[] = [];
   for (let i = dataStartIndex; i < dataStartIndex + 6; i++) {
-    const [, subject, code] = lines[i].split(',').map(item => item?.trim()).filter(Boolean);
-    if (subject && code) {
-      subjects.push({ subject, code });
+    if (i < lines.length) {
+      const [, subject, code] = lines[i].split(',').map(item => item?.trim()).filter(Boolean);
+      if (subject && code) {
+        subjects.push({ subject, code });
+      }
     }
   }
   
   // Parse student records
-  const students = [];
+  const students: Student[] = [];
   for (let i = dataStartIndex; i < lines.length; i++) {
     const columns = lines[i].split(',').map(item => item?.trim()).filter(Boolean);
     if (columns.length >= 3) {
@@ -52,10 +74,15 @@ export const uploadStudentData = async (csvData: string) => {
     console.log('Parsed subjects:', subjects);
     
     // First, ensure the tables exist and are properly structured
-    const { error: tableError } = await supabase.from('students_section_a').select().limit(1).catch(() => ({ error: true }));
-    
-    if (tableError) {
-      // Create the table if it doesn't exist
+    try {
+      const { error: tableError } = await supabase.from('students_section_a').select().limit(1);
+      
+      if (tableError) {
+        // Create the table if it doesn't exist
+        await supabase.rpc('create_students_table');
+      }
+    } catch (error) {
+      // If the table doesn't exist, create it
       await supabase.rpc('create_students_table');
     }
     
