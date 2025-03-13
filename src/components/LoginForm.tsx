@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ArrowLeft, LogIn } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
+import { uploadAllData } from "@/lib/upload-class-codes";
 
 interface LoginFormProps {
   role: "Teacher" | "Student" | "Admin" | "Parent/Mentor";
@@ -23,14 +24,7 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
     subject: "",
     section: ""
   });
-  const [subjects, setSubjects] = useState<{subject: string, code: string}[]>([
-    { subject: "DMS", code: "8253A-67K" },
-    { subject: "TOC", code: "3135B-23X" },
-    { subject: "DCCN", code: "9402C-11M" },
-    { subject: "DBMS", code: "2856D-96T" },
-    { subject: "JAVA", code: "7361E-39J" },
-    { subject: "MPI", code: "5247F-72L" }
-  ]);
+  const [subjects, setSubjects] = useState<{subject: string, code: string}[]>([]);
   const [sections, setSection] = useState<{id: string, name: string}[]>([
     { id: "A", name: "Section A" },
     { id: "B", name: "Section B" },
@@ -38,27 +32,93 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
     { id: "D", name: "Section D" },
     { id: "E", name: "Section E" },
   ]);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        // Ensure tables and data exist
+        await uploadAllData();
+        
+        // If teacher role, fetch subjects
+        if (role === "Teacher") {
+          await fetchSubjects();
+        }
+      } catch (error) {
+        console.error("Error initializing data:", error);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initializeData();
+  }, [role]);
+
+  const fetchSubjects = async () => {
+    try {
+      // Fetch subjects from the database
+      const { data, error } = await supabase
+        .from('subjects')
+        .select('*')
+        .order('subject', { ascending: true });
+      
+      if (error) {
+        console.error("Error fetching subjects:", error);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        const formattedSubjects = data.map(subj => ({
+          subject: subj.subject,
+          code: subj.code
+        }));
+        setSubjects(formattedSubjects);
+      } else {
+        // If no data, set default subjects
+        setSubjects([
+          { subject: "DMS", code: "8253A-67K" },
+          { subject: "TOC", code: "3135B-23X" },
+          { subject: "DCCN", code: "9402C-11M" },
+          { subject: "DBMS", code: "2856D-96T" },
+          { subject: "JAVA", code: "7361E-39J" },
+          { subject: "MPI", code: "5247F-72L" }
+        ]);
+      }
+    } catch (error) {
+      console.error("Error in fetchSubjects:", error);
+    }
+  };
 
   const handleChange = (key: string, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
-  const verifyTeacherCode = async (subject: string, code: string) => {
+  const verifyTeacherCode = async (subject: string, code: string, section: string) => {
     try {
+      // First, check if the tables exist
+      const { count, error: countError } = await supabase
+        .from('subjects')
+        .select('*', { count: 'exact', head: true });
+      
+      if (countError || count === 0) {
+        // Tables might not exist, create them
+        await uploadAllData();
+      }
+      
       // Check if the subject and code match from the subjects table
       const { data, error } = await supabase
         .from('subjects')
         .select('*')
         .eq('subject', subject)
         .eq('code', code)
-        .single();
+        .eq('section', section || 'A');
       
       if (error) {
         console.error("Error verifying teacher code:", error);
         return false;
       }
       
-      return !!data; // Return true if data exists, false otherwise
+      return data && data.length > 0;
     } catch (error) {
       console.error("Error in teacher code verification:", error);
       return false;
@@ -67,19 +127,28 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
 
   const verifyStudentCode = async (studentCode: string) => {
     try {
+      // First, check if the tables exist
+      const { count, error: countError } = await supabase
+        .from('students_section_a')
+        .select('*', { count: 'exact', head: true });
+      
+      if (countError || count === 0) {
+        // Tables might not exist, create them
+        await uploadAllData();
+      }
+      
       // Check if the student code exists in the students_section_a table
       const { data, error } = await supabase
         .from('students_section_a')
         .select('*')
-        .eq('student_code', studentCode)
-        .single();
+        .eq('student_code', studentCode);
       
       if (error) {
         console.error("Error verifying student code:", error);
         return { verified: false, studentData: null };
       }
       
-      return { verified: !!data, studentData: data };
+      return { verified: data && data.length > 0, studentData: data && data.length > 0 ? data[0] : null };
     } catch (error) {
       console.error("Error in student code verification:", error);
       return { verified: false, studentData: null };
@@ -88,19 +157,28 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
 
   const verifyParentCode = async (parentCode: string) => {
     try {
+      // First, check if the tables exist
+      const { count, error: countError } = await supabase
+        .from('students_section_a')
+        .select('*', { count: 'exact', head: true });
+      
+      if (countError || count === 0) {
+        // Tables might not exist, create them
+        await uploadAllData();
+      }
+      
       // Check if the parent code exists in the students_section_a table
       const { data, error } = await supabase
         .from('students_section_a')
         .select('*')
-        .eq('parent_code', parentCode)
-        .single();
+        .eq('parent_code', parentCode);
       
       if (error) {
         console.error("Error verifying parent code:", error);
         return { verified: false, parentData: null };
       }
       
-      return { verified: !!data, parentData: data };
+      return { verified: data && data.length > 0, parentData: data && data.length > 0 ? data[0] : null };
     } catch (error) {
       console.error("Error in parent code verification:", error);
       return { verified: false, parentData: null };
@@ -135,9 +213,9 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
         }
 
         // For other teachers, verify the code against the subject
-        const isVerified = await verifyTeacherCode(formData.subject, formData.uniqueCode);
+        const isVerified = await verifyTeacherCode(formData.subject, formData.uniqueCode, formData.section);
         if (!isVerified) {
-          toast.error("Invalid teacher code for the selected subject");
+          toast.error("Invalid teacher code for the selected subject and section");
           return;
         }
       } else if (role === "Student") {
@@ -181,6 +259,19 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
       toast.error("An unexpected error occurred during login");
     }
   };
+
+  if (isInitializing) {
+    return (
+      <Card className="animate-fade-up shadow-lg border-t-4" style={{ borderTopColor: color.replace("bg-", "") }}>
+        <CardHeader className={`${color} rounded-t-lg text-white`}>
+          <CardTitle className="text-center text-2xl font-bold">Loading...</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 flex justify-center items-center min-h-[300px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="animate-fade-up shadow-lg border-t-4" style={{ borderTopColor: color.replace("bg-", "") }}>

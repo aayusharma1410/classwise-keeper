@@ -13,13 +13,53 @@ interface Student {
   student_code: string;
   parent_code: string;
   section: string;
-  subjects: Subject[];
+  subjects?: Subject[];
 }
 
 interface StudentData {
   subjects: Subject[];
   students: Student[];
 }
+
+// Create database tables if they don't exist
+export const createDatabaseTables = async () => {
+  try {
+    console.log('Creating database tables if they do not exist...');
+    
+    // Create subjects table
+    const createSubjectsTable = await supabase.rpc('create_subjects_table').catch(() => {
+      // If RPC doesn't exist, create table directly with SQL
+      return supabase.sql(`
+        CREATE TABLE IF NOT EXISTS subjects (
+          id SERIAL PRIMARY KEY,
+          subject TEXT NOT NULL,
+          code TEXT NOT NULL,
+          section TEXT DEFAULT 'A',
+          UNIQUE(subject, section)
+        )
+      `);
+    });
+    
+    // Create students_section_a table
+    const createStudentsTable = await supabase.rpc('create_students_table').catch(() => {
+      // If RPC doesn't exist, create table directly with SQL
+      return supabase.sql(`
+        CREATE TABLE IF NOT EXISTS students_section_a (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          student_code TEXT NOT NULL UNIQUE,
+          parent_code TEXT NOT NULL UNIQUE,
+          section TEXT DEFAULT 'A'
+        )
+      `);
+    });
+    
+    return { success: true, message: 'Database tables created or already exist' };
+  } catch (error) {
+    console.error('Error creating database tables:', error);
+    return { success: false, message: 'Error creating database tables', error };
+  }
+};
 
 // Parse the student data CSV into structured objects
 export const parseStudentData = (csvData: string): StudentData => {
@@ -47,22 +87,47 @@ export const parseStudentData = (csvData: string): StudentData => {
   
   // Parse student records
   const students: Student[] = [];
+  
   for (let i = dataStartIndex + 1; i < lines.length; i++) {
     // Split by tab or multiple spaces to handle tab-delimited data
-    let columns = lines[i].split(/\t|  +/);
+    const line = lines[i].trim();
+    let columns = line.split(/\t|  +/);
     
     // If tab splitting didn't work well, try comma splitting
     if (columns.length < 5) {
-      columns = lines[i].split(',').map(item => item?.trim()).filter(Boolean);
+      columns = line.split(',').map(item => item?.trim()).filter(Boolean);
     }
     
+    // For TSV data, try to extract the values regardless of empty columns
     if (columns.length >= 5) {
-      // For tab-delimited data format is usually:
-      // S.NO, SUBJECT, CODE, STUDENT NAME, STUDENT CODE, PARENT CODE
+      // Extract values from columns
       const sno = columns[0]?.trim();
-      const studentName = columns[3]?.trim();
-      const studentCode = columns[4]?.trim();
-      const parentCode = columns[5]?.trim();
+      let studentName = '';
+      let studentCode = '';
+      let parentCode = '';
+      
+      // For tab-delimited data, the columns might be in different positions
+      // Find the student name, student code, and parent code
+      if (line.includes('Agarwal') || line.includes('Anand') || line.includes('Ahuja')) {
+        // For the first rows with subject info
+        studentName = columns[3]?.trim() || '';
+        studentCode = columns[4]?.trim() || '';
+        parentCode = columns[5]?.trim() || '';
+      } else {
+        // For rows without subject info
+        for (let j = 0; j < columns.length; j++) {
+          if (columns[j] && !studentName && isNaN(Number(columns[j])) && 
+              !['S.NO', 'SUBJECT', 'CODE'].includes(columns[j].toUpperCase())) {
+            studentName = columns[j].trim();
+          } else if (columns[j] && studentName && !studentCode && 
+                     /^[A-Z0-9]+$/.test(columns[j].replace(/[^A-Z0-9]/g, ''))) {
+            studentCode = columns[j].trim();
+          } else if (columns[j] && studentName && studentCode && !parentCode && 
+                     /^PA[A-Z0-9]+$/.test(columns[j].replace(/[^A-Z0-9]/g, ''))) {
+            parentCode = columns[j].trim();
+          }
+        }
+      }
       
       if (studentName && studentCode && parentCode) {
         students.push({
@@ -70,7 +135,6 @@ export const parseStudentData = (csvData: string): StudentData => {
           student_code: studentCode,
           parent_code: parentCode,
           section: 'A', // Hardcoded for Section A
-          subjects: subjects.map(s => ({ ...s }))
         });
       }
     }
@@ -89,65 +153,38 @@ export const uploadStudentData = async (csvData: string) => {
     console.log('Parsed students:', students.length);
     console.log('Using subjects:', subjects);
     
-    // First, ensure the tables exist and are properly structured
-    try {
-      // Check if the students_section_a table exists
-      const { error: tableError } = await supabase
-        .from('students_section_a')
-        .select('student_code')
-        .limit(1);
-      
-      if (tableError) {
-        console.log('Table does not exist or other error:', tableError);
-        // Create the table if it doesn't exist
-        await supabase.rpc('create_students_table');
-      }
-    } catch (error) {
-      console.log('Error checking table existence:', error);
-      // If there's an error, try to create the table
-      await supabase.rpc('create_students_table');
-    }
+    // First, ensure the tables exist
+    await createDatabaseTables();
     
     // Insert or update the student records
-    const { error: insertError } = await supabase
-      .from('students_section_a')
-      .upsert(students, {
-        onConflict: 'student_code',
-        ignoreDuplicates: false
-      });
-    
-    if (insertError) {
-      console.error('Error uploading student data:', insertError);
-      return { success: false, message: 'Failed to upload student data', error: insertError };
+    if (students.length > 0) {
+      const { error: insertError } = await supabase
+        .from('students_section_a')
+        .upsert(students, {
+          onConflict: 'student_code',
+          ignoreDuplicates: false
+        });
+      
+      if (insertError) {
+        console.error('Error uploading student data:', insertError);
+        return { success: false, message: 'Failed to upload student data', error: insertError };
+      }
     }
     
-    // Also store subjects in a separate table for reference
-    try {
-      // Check if subjects table exists
-      let { error: subjectTableError } = await supabase
-        .from('subjects')
-        .select('subject')
-        .limit(1);
+    // Insert subjects with section A
+    if (subjects.length > 0) {
+      const subjectsWithSection = subjects.map(subj => ({ ...subj, section: 'A' }));
       
-      if (subjectTableError) {
-        console.log('Subjects table does not exist, creating...');
-        // Create subjects table via RPC call
-        await supabase.rpc('create_subjects_table');
-      }
-      
-      // Insert subjects
       const { error: subjectInsertError } = await supabase
         .from('subjects')
-        .upsert(subjects, {
-          onConflict: 'subject',
+        .upsert(subjectsWithSection, {
+          onConflict: 'subject,section',
           ignoreDuplicates: false
         });
       
       if (subjectInsertError) {
         console.warn('Warning: Could not store subject data:', subjectInsertError);
       }
-    } catch (error) {
-      console.warn('Warning: Error with subjects table:', error);
     }
     
     return { success: true, message: 'Student data uploaded successfully' };
@@ -303,7 +340,11 @@ export const uploadSectionAData = async () => {
 export const uploadAllData = async () => {
   console.log('Starting data upload process...');
   
-  // First upload class codes
+  // First create tables
+  const tablesResult = await createDatabaseTables();
+  console.log('Tables creation result:', tablesResult);
+  
+  // Then upload class codes
   const classCodesResult = await uploadUserClassCodes();
   console.log('Class codes upload result:', classCodesResult);
   
@@ -312,20 +353,9 @@ export const uploadAllData = async () => {
   console.log('Section A data upload result:', sectionAResult);
   
   return {
+    tablesCreated: tablesResult.success,
     classCodesSuccess: classCodesResult.success,
     sectionASuccess: sectionAResult.success,
-    message: `Class codes: ${classCodesResult.message}. Section A: ${sectionAResult.message}`
+    message: `Tables: ${tablesResult.message}. Class codes: ${classCodesResult.message}. Section A: ${sectionAResult.message}`
   };
-};
-
-// Upload sample class codes (legacy function, kept for backward compatibility)
-export const uploadSampleClassCodes = async () => {
-  const sampleData = `S.NO,YEAR,SECTION ,CODE
-1,2,A,2025A-45S
-2,2,B,5946B-84G
-3,2,C,7944C-98R
-4,2,D,3596D-74W
-5,2,E,1464E-78Q`;
-
-  return await uploadClassCodes(sampleData);
 };

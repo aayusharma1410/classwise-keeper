@@ -4,6 +4,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { createDatabaseTables } from './upload-class-codes';
 
 type AuthContextType = {
   user: User | null;
@@ -23,6 +24,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const setupSession = async () => {
+      // Ensure database tables exist
+      await createDatabaseTables();
+      
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
