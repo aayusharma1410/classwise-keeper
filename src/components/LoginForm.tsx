@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,11 +97,12 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
                     <SelectValue placeholder="Select subject" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="mathematics">Mathematics</SelectItem>
-                    <SelectItem value="science">Science</SelectItem>
-                    <SelectItem value="english">English</SelectItem>
-                    <SelectItem value="history">History</SelectItem>
-                    <SelectItem value="geography">Geography</SelectItem>
+                    <SelectItem value="DMS">DMS (8253A-67K)</SelectItem>
+                    <SelectItem value="TOC">TOC (3135B-23X)</SelectItem>
+                    <SelectItem value="DCCN">DCCN (9402C-11M)</SelectItem>
+                    <SelectItem value="DBMS">DBMS (2856D-96T)</SelectItem>
+                    <SelectItem value="JAVA">JAVA (7361E-39J)</SelectItem>
+                    <SelectItem value="MPI">MPI (5247F-72L)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
