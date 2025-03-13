@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import AttendanceTable from "@/components/AttendanceTable";
 import AttendanceChart from "@/components/AttendanceChart";
 import { supabase } from "@/lib/supabase";
-import { uploadSampleClassCodes, uploadUserClassCodes, uploadAllData } from "@/lib/upload-class-codes";
+import { uploadClassCodes, uploadUserClassCodes, uploadAllData } from "@/lib/upload-class-codes";
 import { ensureClassCodesTableExists } from "@/lib/class-code-service";
 
 interface TeacherData {
@@ -129,7 +129,7 @@ const TeacherDashboard = () => {
     setIsUploading(true);
     
     try {
-      const result = await uploadSampleClassCodes();
+      const result = await uploadClassCodes();
       
       if (result.success) {
         toast({

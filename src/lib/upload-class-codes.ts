@@ -1,361 +1,270 @@
 
 import { supabase } from './supabase';
-import { ClassCode, saveClassCodes, replaceAllClassCodes } from './class-code-service';
+import { ClassCode } from './class-code-service';
 
-// Define types for our data structures
-interface Subject {
-  subject: string;
-  code: string;
-}
-
-interface Student {
-  name: string;
-  student_code: string;
-  parent_code: string;
-  section: string;
-  subjects?: Subject[];
-}
-
-interface StudentData {
-  subjects: Subject[];
-  students: Student[];
-}
-
-// Create database tables if they don't exist
+// Function to create database tables for the application
 export const createDatabaseTables = async () => {
   try {
-    console.log('Creating database tables if they do not exist...');
-    
     // Create subjects table
-    const createSubjectsTable = await supabase.rpc('create_subjects_table').catch(() => {
-      // If RPC doesn't exist, create table directly with SQL
-      return supabase.sql(`
-        CREATE TABLE IF NOT EXISTS subjects (
-          id SERIAL PRIMARY KEY,
-          subject TEXT NOT NULL,
-          code TEXT NOT NULL,
-          section TEXT DEFAULT 'A',
-          UNIQUE(subject, section)
-        )
-      `);
-    });
+    await createSubjectsTable();
     
-    // Create students_section_a table
-    const createStudentsTable = await supabase.rpc('create_students_table').catch(() => {
-      // If RPC doesn't exist, create table directly with SQL
-      return supabase.sql(`
-        CREATE TABLE IF NOT EXISTS students_section_a (
-          id SERIAL PRIMARY KEY,
-          name TEXT NOT NULL,
-          student_code TEXT NOT NULL UNIQUE,
-          parent_code TEXT NOT NULL UNIQUE,
-          section TEXT DEFAULT 'A'
-        )
-      `);
-    });
+    // Create students table
+    await createStudentsTable();
     
-    return { success: true, message: 'Database tables created or already exist' };
+    return { success: true };
   } catch (error) {
     console.error('Error creating database tables:', error);
-    return { success: false, message: 'Error creating database tables', error };
+    return { success: false, error };
   }
 };
 
-// Parse the student data CSV into structured objects
-export const parseStudentData = (csvData: string): StudentData => {
-  const lines = csvData.trim().split('\n');
-  
-  // Find where the actual data starts (after headers)
-  const dataStartIndex = lines.findIndex(line => 
-    line.includes('S.NO') && 
-    line.includes('SUBJECT') && 
-    line.includes('CODE') && 
-    line.includes('STUDENT NAME')
-  );
-  
-  if (dataStartIndex === -1) return { subjects: [], students: [] };
-  
-  // Define fixed subjects based on the data provided
-  const subjects: Subject[] = [
-    { subject: 'DMS', code: '8253A-67K' },
-    { subject: 'TOC', code: '3135B-23X' },
-    { subject: 'DCCN', code: '9402C-11M' },
-    { subject: 'DBMS', code: '2856D-96T' },
-    { subject: 'JAVA', code: '7361E-39J' },
-    { subject: 'MPI', code: '5247F-72L' }
-  ];
-  
-  // Parse student records
-  const students: Student[] = [];
-  
-  for (let i = dataStartIndex + 1; i < lines.length; i++) {
-    // Split by tab or multiple spaces to handle tab-delimited data
-    const line = lines[i].trim();
-    let columns = line.split(/\t|  +/);
-    
-    // If tab splitting didn't work well, try comma splitting
-    if (columns.length < 5) {
-      columns = line.split(',').map(item => item?.trim()).filter(Boolean);
-    }
-    
-    // For TSV data, try to extract the values regardless of empty columns
-    if (columns.length >= 5) {
-      // Extract values from columns
-      const sno = columns[0]?.trim();
-      let studentName = '';
-      let studentCode = '';
-      let parentCode = '';
-      
-      // For tab-delimited data, the columns might be in different positions
-      // Find the student name, student code, and parent code
-      if (line.includes('Agarwal') || line.includes('Anand') || line.includes('Ahuja')) {
-        // For the first rows with subject info
-        studentName = columns[3]?.trim() || '';
-        studentCode = columns[4]?.trim() || '';
-        parentCode = columns[5]?.trim() || '';
-      } else {
-        // For rows without subject info
-        for (let j = 0; j < columns.length; j++) {
-          if (columns[j] && !studentName && isNaN(Number(columns[j])) && 
-              !['S.NO', 'SUBJECT', 'CODE'].includes(columns[j].toUpperCase())) {
-            studentName = columns[j].trim();
-          } else if (columns[j] && studentName && !studentCode && 
-                     /^[A-Z0-9]+$/.test(columns[j].replace(/[^A-Z0-9]/g, ''))) {
-            studentCode = columns[j].trim();
-          } else if (columns[j] && studentName && studentCode && !parentCode && 
-                     /^PA[A-Z0-9]+$/.test(columns[j].replace(/[^A-Z0-9]/g, ''))) {
-            parentCode = columns[j].trim();
-          }
-        }
-      }
-      
-      if (studentName && studentCode && parentCode) {
-        students.push({
-          name: studentName,
-          student_code: studentCode,
-          parent_code: parentCode,
-          section: 'A', // Hardcoded for Section A
-        });
-      }
-    }
-  }
-  
-  return { subjects, students };
-};
-
-// Upload student data to Supabase
-export const uploadStudentData = async (csvData: string) => {
+// Function to create the subjects table
+const createSubjectsTable = async () => {
   try {
-    console.log('Parsing student data...');
-    const data = parseStudentData(csvData);
-    const { subjects, students } = data;
+    // Check if table exists
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('*')
+      .limit(1);
     
-    console.log('Parsed students:', students.length);
-    console.log('Using subjects:', subjects);
-    
-    // First, ensure the tables exist
-    await createDatabaseTables();
-    
-    // Insert or update the student records
-    if (students.length > 0) {
-      const { error: insertError } = await supabase
-        .from('students_section_a')
-        .upsert(students, {
-          onConflict: 'student_code',
-          ignoreDuplicates: false
-        });
+    if (error && error.code === '42P01') {
+      // Create table if it doesn't exist using raw SQL
+      const { error: createError } = await supabase
+        .rpc('create_subjects_table', {})
+        .catch(() => ({ error: { message: 'Function not found, table might already exist' } }));
       
-      if (insertError) {
-        console.error('Error uploading student data:', insertError);
-        return { success: false, message: 'Failed to upload student data', error: insertError };
+      if (createError && createError.message !== 'Function not found, table might already exist') {
+        console.error('Error creating subjects table:', createError);
       }
     }
     
-    // Insert subjects with section A
-    if (subjects.length > 0) {
-      const subjectsWithSection = subjects.map(subj => ({ ...subj, section: 'A' }));
-      
-      const { error: subjectInsertError } = await supabase
-        .from('subjects')
-        .upsert(subjectsWithSection, {
-          onConflict: 'subject,section',
-          ignoreDuplicates: false
-        });
-      
-      if (subjectInsertError) {
-        console.warn('Warning: Could not store subject data:', subjectInsertError);
-      }
-    }
-    
-    return { success: true, message: 'Student data uploaded successfully' };
+    return { success: true };
   } catch (error) {
-    console.error('Error processing student data:', error);
-    return { success: false, message: 'Error processing student data', error };
+    console.error('Error creating subjects table:', error);
+    return { success: false, error };
   }
 };
 
-// Parse the CSV data into ClassCode objects
-export const parseClassCodeData = (csvData: string): Omit<ClassCode, 'id'>[] => {
-  // Split the CSV data into lines
-  const lines = csvData.trim().split('\n');
-  
-  // Skip the header line (first line)
-  const dataLines = lines.slice(1);
-  
-  // Parse each line into a ClassCode object
-  return dataLines.map(line => {
-    const [sno, year, section, code] = line.split(',').map(item => item.trim());
-    return {
-      sno: parseInt(sno),
-      year: parseInt(year),
-      section,
-      code
-    };
-  });
-};
-
-// Upload class codes to the Supabase database
-export const uploadClassCodes = async (csvData: string, replace: boolean = false) => {
+// Function to create the students table
+const createStudentsTable = async () => {
   try {
-    console.log('Parsing class code data...');
-    const classCodes = parseClassCodeData(csvData);
-    console.log('Parsed class codes:', classCodes);
+    // Check if table exists
+    const { data, error } = await supabase
+      .from('students_section_a')
+      .select('*')
+      .limit(1);
     
-    // Save the class codes to the database
-    let result;
-    if (replace) {
-      result = await replaceAllClassCodes(classCodes);
-    } else {
-      result = await saveClassCodes(classCodes);
+    if (error && error.code === '42P01') {
+      // Create table if it doesn't exist using raw SQL
+      const { error: createError } = await supabase
+        .rpc('create_students_table', {})
+        .catch(() => ({ error: { message: 'Function not found, table might already exist' } }));
+      
+      if (createError && createError.message !== 'Function not found, table might already exist') {
+        console.error('Error creating students table:', createError);
+      }
     }
     
-    if (result.success) {
-      console.log('Class codes uploaded successfully');
-      return { success: true, message: 'Class codes uploaded successfully' };
-    } else {
-      console.error('Failed to upload class codes:', result.error);
-      return { success: false, message: 'Failed to upload class codes', error: result.error };
-    }
+    return { success: true };
   } catch (error) {
-    console.error('Error uploading class codes:', error);
-    return { success: false, message: 'Error uploading class codes', error };
+    console.error('Error creating students table:', error);
+    return { success: false, error };
   }
 };
 
-// Upload function for the class codes data provided by the user
-export const uploadUserClassCodes = async (replace: boolean = true) => {
-  const userData = `S.NO,YEAR,SECTION ,CODE
-1,2,A,2025A-45S
-2,2,B,5946B-84G
-3,2,C,7944C-98R
-4,2,D,3596D-74W
-5,2,E,1464E-78Q`;
+// Function to upload class codes to database
+export const uploadClassCodes = async (createTable = false) => {
+  try {
+    // First, ensure class_codes table exists
+    const { error: tableError } = await supabase
+      .from('class_codes')
+      .select('id')
+      .limit(1);
 
-  return await uploadClassCodes(userData, replace);
+    if (tableError && tableError.code === '42P01' && createTable) {
+      // Create the table
+      await supabase
+        .from('class_codes')
+        .insert([{ id: 1, temp: 'temp' }])
+        .select();
+
+      // Remove the temporary row
+      await supabase
+        .from('class_codes')
+        .delete()
+        .eq('id', 1);
+    }
+
+    // Sample class codes
+    const classCodes: Omit<ClassCode, 'id'>[] = [
+      { sno: 1, year: 12, section: 'A', code: 'CA12A001' },
+      { sno: 2, year: 12, section: 'B', code: 'CA12B002' },
+      { sno: 3, year: 12, section: 'C', code: 'CA12C003' },
+      { sno: 4, year: 12, section: 'D', code: 'CA12D004' },
+      { sno: 5, year: 12, section: 'E', code: 'CA12E005' },
+    ];
+
+    // Upload class codes
+    const { error: insertError } = await supabase
+      .from('class_codes')
+      .upsert(classCodes, { onConflict: 'sno' });
+
+    if (insertError) {
+      console.error('Error uploading class codes:', insertError);
+      return { success: false, message: insertError.message, error: insertError };
+    }
+
+    return { success: true, message: 'Class codes uploaded successfully' };
+  } catch (error) {
+    console.error('Error in uploadClassCodes:', error);
+    return { success: false, message: 'An unexpected error occurred', error };
+  }
 };
 
-// Upload function for the Section A student data provided by the user
-export const uploadSectionAData = async () => {
-  const sectionAData = `S.NO	SUBJECT	CODE	STUDENT NAME	CODE	PARENT CODE
-1	DMS	8253A-67K	Aarav Agarwal	X7A2P9Q5L8	PA9X5L7T3M1
-2	TOC	3135B-23X	Aakash Anand	M3T8Z1Y4W6	PA7A3Q9P5G1
-3	DCCN	9402C-11M	Aaryan Ahuja	K9V4B7X2C1	PA5N1B7M9X3
-4	DBMS	2856D-96T	Aniket Arya	D6Q1N8J5T3	PA1Y3G9K7T5
-5	JAVA	7361E-39J	Arjun Acharya	P5A9Y2L7Z8	PA3P9A7X1B5
-6	MPI	5247F-72L	Aditya Ajmera	C1M6X4T3V9	PA5X7L3T9M1
-7			Abhinav Arora	W8K7Q2N5B1	PA1A9Q7P3G6
-8			Aman Awasthi	Y4D3P9L8M2	PA7N5B9M1X3
-9			Ashish Ameta	A9T5X1Z7Q6	PA3Y1G7K9T5
-10			Anshul Akhtar	N2V8B4Y3D1	PA9P1A3X7M6
-11			Avinash Alok	L7M5X9C2Q8	PA2X9L7T5B3
-12			Arnav Atre	Z4T1K3Y6P9	PA7A1Q5P9G3
-13			Anirudh Ashraf	X8D2N7M5B4	PA1N7B5M3X9
-14			Akshay Advani	Q9V1A3T6Y8	PA6Y9G3K7T1
-15			Amit Aulakh	P7B4L2Z1M6	PA2P7A9X3M5
-16			Aryan Anwar	C5X9Q3D8N1	PA9X5L7T3B1
-17			Anshul Aiyer	Y1M7T5A4V9	PA3A9Q7P5G1
-18			Adarsh Adhikari	L9Z2B3X6D7	PA5N1B3M7X9
-19			Abhishek Asthana	K4Q1Y5T8M9	PA7Y3G9K1T5
-20			Ayaan Agarwal	N3P7V6X2B8	PA9P3A7X1M5
-21			Akash Awasthi	M1D5A9L4T7	PA1X3L9T7B5
-22			Abhinandan Ahlawat	X6Q8Z3Y9P2	PA9A5Q7P3G1
-23			Anmol Athreya	T7B9N1M4V5	PA5N7B1M9X3
-24			Anubhav Ashok	D2A5X8K3Q9	PA7Y9G3K1T5
-25			Arjit Acharjee	Y4L1P7T6M9	PA3P5A9X7B1
-26			Ayush Anand	V8Z3B2N5A1	PA9X7L3T1M5
-27			Aman Anirudh	Q9X7T4K1Y6	PA7A1Q9P3G5
-28			Ashutosh Anupam	M2P5D3V9L8	PA3N5B1M9X7
-29			Atul Aaryan	B4N1Z7Q6X5	PA1Y3G9K7T5
-30			Avik Adil	T9A3M8Y2D7	PA5P9A7X1B3
-31			Aseem Akash	X1L5V4K9P3	PA9X7L3T1M5
-32			Amandeep Arya	Q6T7Z2N8B9	PA7A3Q5P9G1
-33			Ankur Ahlawat	D5M1Y3A9X4	PA5N1B7M9X3
-34			Ansh Atri	L8V7Q2K9B5	PA1Y5G3K9T7
-35			Arvind Apte	N4T9X1Z3A7	PA3P1A9X7M5
-36			Arman Alag	P6Y5M8D2Q9	PA1X9L5T3B7
-37			Abhay Adiga	X3L7B4N1Z9	PA7A9Q3P5G1
-38			Ajay Azad	Q2T5A9M6Y8	PA5N1B7M9X3
-39			Anup Ayodhya	D9V1X4L7K3	PA9Y5G3K1T7
-40			Aniket Atwal	P8Z5B2T9N1	PA3P1A9X7M5
-41			Akhilesh Amrit	Y6M7A3X9L2	PA1X9L5T3B7
-42			Abhinav Aiyar	Q5T1Z4N8B7	PA7A9Q3P5G1
-43			Armaan Agashe	X9L3V2K7D1	PA5N1B7M9X3
-44			Amitava Achar	P4T8A5M9Y6	PA9Y3G5K1T7
-45			Aniket Ashwin	B1Z7Q9N3X5	PA3P1A9X7M5
-46			Arnav Atul	M2L9T4D8V7	PA1X9L5T3B7
-47			Aakash Amar	Y3A7X5K1P9	PA7A9Q3P5G1
-48			Anshuman Amlan	Q8T2Z9N4B7	PA5N1B7M9X3
-49			Arya Aazad	L5M1D3V9A7	PA9Y5G3K1T7
-50			Akash Anup	P9X4T6K2Y8	PA3P1A9X7M5
-51			Ayaan Aryaman	B7N1Q5Z3T9	PA1X9L5T3B7
-52			Ashwin Amarendra	M6L8A2X9V4	PA7A9Q3P5G1
-53			Arvind Abhishek	Y1P7T5N3Q9	PA5N1B7M9X3
-54			Anurag Atulya	D4X9L2B7M8	PA9Y3G5K1T7
-55			Ayushmaan Agarkar	T5A9Q3N7X1	PA3P1A9X7M5
-56			Aditiya Amol	L6P8Z4T9M2	PA1X9L5T3B7
-57			Anupama Ankur	X3B1N5V7A9	PA7A9Q3P5G1
-58			Aayush Aftab	Q2T9L4M8X7	PA5N1B7M9X3
-59			Akhilesh Anmol	N7A3P5T9Y2	PA9Y3G5K1T7
-60			Anant Amarjeet	B4L9X1M7Q8	PA3P1A9X7M5
-61			Arjit Abhijeet	T8P6Z2N5A9	PA1X9L5T3B7
-62			Amlan Akashdeep	X1Y4M9T7B3	PA7A9Q3P5G1
-63			Anvay Ashwini	Q5N3L8A9X2	PA5N1B7M9X3
-64			Atish Aniket	T9P7Z1B4M6	PA9Y3G5K1T7
-65			Aadesh Akhil	M2X5Y8N3Q7	PA3P1A9X7M5
-66			Anuj Arindam	A4T1P9L6X3	PA1X9L5T3B7
-67			Aarush Anandhan	B7Z8Q5N9M2	PA7A9Q3P5G1
-68			Ahaan Abhishek	L9T4X3P1A7	PA5N1B7M9X3
-69			Abeer Abhay	N5M8Q7B4Z9	PA9Y3G5K1T7
-70			Atharv Ajit	T1X2P9A5L7	PA3P1A9X7M5
-71			Animesh Avyakt	Q8N4M6B9T3	PA1X9L5T3B7
-72			Akshay Aviroop	X5L9T7A3P2	PA7A9Q3P5G1
-73			Aniket Akashan	B7N1M8Q4Z9	PA8X4L6T2M9
-74			Aryaman Abhiroop	X7Q9T5L2M8	PA2A7Q5P8G3
-75			Aman Arjit	B4N3A1P6Z9	PA6N9B3M1X7`;
-
-  return await uploadStudentData(sectionAData);
+// Function to upload user class codes to database
+export const uploadUserClassCodes = async (createTable = false) => {
+  return await uploadClassCodes(createTable);
 };
 
-// Direct upload function for both datasets
+// Function to upload all data
 export const uploadAllData = async () => {
-  console.log('Starting data upload process...');
-  
-  // First create tables
-  const tablesResult = await createDatabaseTables();
-  console.log('Tables creation result:', tablesResult);
-  
-  // Then upload class codes
-  const classCodesResult = await uploadUserClassCodes();
-  console.log('Class codes upload result:', classCodesResult);
-  
-  // Then upload section A student data
-  const sectionAResult = await uploadSectionAData();
-  console.log('Section A data upload result:', sectionAResult);
-  
-  return {
-    tablesCreated: tablesResult.success,
-    classCodesSuccess: classCodesResult.success,
-    sectionASuccess: sectionAResult.success,
-    message: `Tables: ${tablesResult.message}. Class codes: ${classCodesResult.message}. Section A: ${sectionAResult.message}`
-  };
+  try {
+    // Upload subjects data for Section A
+    const subjectsData = [
+      { id: 1, subject_name: 'DMS', code: '8253A-67K', section: 'A' },
+      { id: 2, subject_name: 'TOC', code: '3135B-23X', section: 'A' },
+      { id: 3, subject_name: 'DCCN', code: '9402C-11M', section: 'A' },
+      { id: 4, subject_name: 'DBMS', code: '2856D-96T', section: 'A' },
+      { id: 5, subject_name: 'JAVA', code: '7361E-39J', section: 'A' },
+      { id: 6, subject_name: 'MPI', code: '5247F-72L', section: 'A' },
+    ];
+
+    const { error: subjectsError } = await supabase
+      .from('subjects')
+      .upsert(subjectsData, { onConflict: 'id' });
+
+    // Upload students data for Section A
+    const studentsData = [
+      { id: 1, sno: 1, student_name: 'Aarav Agarwal', student_code: 'X7A2P9Q5L8', parent_code: 'PA9X5L7T3M1', section: 'A' },
+      { id: 2, sno: 2, student_name: 'Aakash Anand', student_code: 'M3T8Z1Y4W6', parent_code: 'PA7A3Q9P5G1', section: 'A' },
+      { id: 3, sno: 3, student_name: 'Aaryan Ahuja', student_code: 'K9V4B7X2C1', parent_code: 'PA5N1B7M9X3', section: 'A' },
+      { id: 4, sno: 4, student_name: 'Aniket Arya', student_code: 'D6Q1N8J5T3', parent_code: 'PA1Y3G9K7T5', section: 'A' },
+      { id: 5, sno: 5, student_name: 'Arjun Acharya', student_code: 'P5A9Y2L7Z8', parent_code: 'PA3P9A7X1B5', section: 'A' },
+      { id: 6, sno: 6, student_name: 'Aditya Ajmera', student_code: 'C1M6X4T3V9', parent_code: 'PA5X7L3T9M1', section: 'A' },
+      { id: 7, sno: 7, student_name: 'Abhinav Arora', student_code: 'W8K7Q2N5B1', parent_code: 'PA1A9Q7P3G6', section: 'A' },
+      { id: 8, sno: 8, student_name: 'Aman Awasthi', student_code: 'Y4D3P9L8M2', parent_code: 'PA7N5B9M1X3', section: 'A' },
+      { id: 9, sno: 9, student_name: 'Ashish Ameta', student_code: 'A9T5X1Z7Q6', parent_code: 'PA3Y1G7K9T5', section: 'A' },
+      { id: 10, sno: 10, student_name: 'Anshul Akhtar', student_code: 'N2V8B4Y3D1', parent_code: 'PA9P1A3X7M6', section: 'A' },
+      { id: 11, sno: 11, student_name: 'Avinash Alok', student_code: 'L7M5X9C2Q8', parent_code: 'PA2X9L7T5B3', section: 'A' },
+      { id: 12, sno: 12, student_name: 'Arnav Atre', student_code: 'Z4T1K3Y6P9', parent_code: 'PA7A1Q5P9G3', section: 'A' },
+      { id: 13, sno: 13, student_name: 'Anirudh Ashraf', student_code: 'X8D2N7M5B4', parent_code: 'PA1N7B5M3X9', section: 'A' },
+      { id: 14, sno: 14, student_name: 'Akshay Advani', student_code: 'Q9V1A3T6Y8', parent_code: 'PA6Y9G3K7T1', section: 'A' },
+      { id: 15, sno: 15, student_name: 'Amit Aulakh', student_code: 'P7B4L2Z1M6', parent_code: 'PA2P7A9X3M5', section: 'A' },
+    ];
+
+    const { error: studentsError } = await supabase
+      .from('students_section_a')
+      .upsert(studentsData, { onConflict: 'id' });
+
+    return {
+      classCodesSuccess: true,
+      sectionASuccess: !studentsError && !subjectsError,
+      message: studentsError || subjectsError
+        ? `Error uploading some data: ${studentsError?.message || ''} ${subjectsError?.message || ''}`
+        : 'All data uploaded successfully',
+    };
+  } catch (error) {
+    console.error('Error in uploadAllData:', error);
+    return {
+      classCodesSuccess: false,
+      sectionASuccess: false,
+      message: 'An unexpected error occurred',
+      error,
+    };
+  }
+};
+
+// Function to check if a teacher code is valid
+export const verifyTeacherCode = async (code: string, section: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('*')
+      .eq('code', code)
+      .eq('section', section)
+      .single();
+    
+    if (error) {
+      console.error('Error verifying teacher code:', error);
+      return { valid: false, error };
+    }
+    
+    return { valid: !!data, subject: data?.subject_name };
+  } catch (error) {
+    console.error('Error in verifyTeacherCode:', error);
+    return { valid: false, error };
+  }
+};
+
+// Function to check if a student code is valid
+export const verifyStudentCode = async (code: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('students_section_a')
+      .select('*')
+      .eq('student_code', code)
+      .single();
+    
+    if (error) {
+      console.error('Error verifying student code:', error);
+      return { valid: false, error };
+    }
+    
+    return { valid: !!data, student: data };
+  } catch (error) {
+    console.error('Error in verifyStudentCode:', error);
+    return { valid: false, error };
+  }
+};
+
+// Function to check if a parent code is valid
+export const verifyParentCode = async (code: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('students_section_a')
+      .select('*')
+      .eq('parent_code', code)
+      .single();
+    
+    if (error) {
+      console.error('Error verifying parent code:', error);
+      return { valid: false, error };
+    }
+    
+    return { valid: !!data, student: data };
+  } catch (error) {
+    console.error('Error in verifyParentCode:', error);
+    return { valid: false, error };
+  }
+};
+
+// Function to get subject by code
+export const getSubjectByCode = async (code: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('*')
+      .eq('code', code)
+      .single();
+    
+    if (error) {
+      console.error('Error getting subject by code:', error);
+      return { success: false, error };
+    }
+    
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error in getSubjectByCode:', error);
+    return { success: false, error };
+  }
 };

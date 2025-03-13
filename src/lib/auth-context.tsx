@@ -5,12 +5,13 @@ import { supabase } from './supabase';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { createDatabaseTables } from './upload-class-codes';
+import { verifyTeacherCode, verifyStudentCode, verifyParentCode, getSubjectByCode } from './upload-class-codes';
 
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  signIn: (email: string, uniqueCode: string, role: string, subject?: string, section?: string) => Promise<void>;
+  signIn: (email: string, uniqueCode: string, role: string, section?: string, subject?: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -47,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setupSession();
   }, []);
 
-  const signIn = async (email: string, uniqueCode: string, role: string, subject?: string, section?: string) => {
+  const signIn = async (email: string, uniqueCode: string, role: string, section?: string, subject?: string) => {
     setIsLoading(true);
     
     try {
@@ -74,25 +75,92 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Regular login flow for other users
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password: uniqueCode, // Using uniqueCode as password for simplicity
-      });
+      // Verify codes based on role
+      let isValid = false;
+      let userData: any = { role, email };
 
-      if (error) {
-        toast.error("Login failed: " + error.message);
+      switch (role) {
+        case "Teacher":
+          if (!section) {
+            toast.error("Section is required for teacher login");
+            setIsLoading(false);
+            return;
+          }
+          
+          const teacherVerification = await verifyTeacherCode(uniqueCode, section || "A");
+          isValid = teacherVerification.valid;
+          
+          if (isValid) {
+            const subjectInfo = await getSubjectByCode(uniqueCode);
+            userData = {
+              ...userData,
+              name: email.split('@')[0],
+              subject: teacherVerification.subject || subject,
+              section: section || "A",
+              class: `12 ${section || "A"}`,
+              uniqueCode,
+            };
+          } else {
+            toast.error("Invalid teacher code for this section");
+            setIsLoading(false);
+            return;
+          }
+          break;
+          
+        case "Student":
+          const studentVerification = await verifyStudentCode(uniqueCode);
+          isValid = studentVerification.valid;
+          
+          if (isValid && studentVerification.student) {
+            userData = {
+              ...userData,
+              name: studentVerification.student.student_name,
+              section: studentVerification.student.section || "A",
+              studentCode: uniqueCode,
+            };
+          } else {
+            toast.error("Invalid student code");
+            setIsLoading(false);
+            return;
+          }
+          break;
+          
+        case "Parent/Mentor":
+          const parentVerification = await verifyParentCode(uniqueCode);
+          isValid = parentVerification.valid;
+          
+          if (isValid && parentVerification.student) {
+            userData = {
+              ...userData,
+              name: email.split('@')[0] || "Parent",
+              student: parentVerification.student.student_name,
+              section: parentVerification.student.section || "A",
+              parentCode: uniqueCode,
+            };
+          } else {
+            toast.error("Invalid parent code");
+            setIsLoading(false);
+            return;
+          }
+          break;
+          
+        case "Admin":
+          // For demo, accept any admin code
+          isValid = true;
+          userData = {
+            ...userData,
+            name: "Admin",
+          };
+          break;
+      }
+
+      if (!isValid) {
+        toast.error(`Invalid ${role.toLowerCase()} code provided`);
+        setIsLoading(false);
         return;
       }
 
-      // Store user role and other details in session storage
-      const userData = {
-        role, 
-        email,
-        subject,
-        section: section || "A"
-      };
-      
+      // Store user data in session storage
       sessionStorage.setItem("user", JSON.stringify(userData));
       
       // Navigate to the correct dashboard
