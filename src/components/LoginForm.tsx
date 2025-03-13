@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -25,8 +24,9 @@ interface FormData {
 }
 
 interface LoginFormProps {
-  role: string;
+  role: "Teacher" | "Student" | "Admin" | "Parent/Mentor";
   onClose: () => void;
+  color: string;
 }
 
 const sections = [
@@ -37,7 +37,7 @@ const sections = [
   { value: "E", label: "Section E" },
 ];
 
-const LoginForm = ({ role, onClose }: LoginFormProps) => {
+const LoginForm = ({ role, onClose, color }: LoginFormProps) => {
   const { signIn, isLoading } = useAuth();
   const [subjects, setSubjects] = useState<{id: number, subject_name: string, code: string, section: string}[]>([]);
   const [selectedSection, setSelectedSection] = useState("A");
@@ -51,10 +51,8 @@ const LoginForm = ({ role, onClose }: LoginFormProps) => {
   } = useForm<FormData>();
 
   useEffect(() => {
-    // Set role when component mounts
     setValue("role", role);
     
-    // Fetch subjects from database
     const fetchSubjects = async () => {
       try {
         const { data, error } = await supabase
@@ -76,7 +74,6 @@ const LoginForm = ({ role, onClose }: LoginFormProps) => {
   }, [role, setValue]);
 
   useEffect(() => {
-    // Filter subjects when section changes
     const filtered = subjects.filter(subject => subject.section === selectedSection);
     setFilteredSubjects(filtered);
   }, [selectedSection, subjects]);
@@ -139,9 +136,9 @@ const LoginForm = ({ role, onClose }: LoginFormProps) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
       <Card className="mx-auto max-w-md">
-        <CardHeader>
-          <CardTitle>{getRoleLabel()} Login</CardTitle>
-          <CardDescription>
+        <CardHeader className={color ? color : ""}>
+          <CardTitle className={color ? "text-white" : ""}>{getRoleLabel()} Login</CardTitle>
+          <CardDescription className={color ? "text-gray-100" : ""}>
             Enter your credentials to access the {role.toLowerCase()} dashboard
           </CardDescription>
         </CardHeader>
@@ -225,7 +222,12 @@ const LoginForm = ({ role, onClose }: LoginFormProps) => {
               >
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1" disabled={isLoading}>
+              <Button 
+                type="submit" 
+                className="flex-1" 
+                style={color ? { backgroundColor: color.replace("bg-", "") } : {}}
+                disabled={isLoading}
+              >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
