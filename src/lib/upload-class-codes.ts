@@ -30,11 +30,11 @@ const createSubjectsTable = async () => {
     if (error && error.code === '42P01') {
       // Create table if it doesn't exist using raw SQL
       const { error: createError } = await supabase
-        .rpc('create_subjects_table', {})
-        .catch(() => ({ error: { message: 'Function not found, table might already exist' } }));
+        .rpc('create_subjects_table', {});
       
-      if (createError && createError.message !== 'Function not found, table might already exist') {
+      if (createError) {
         console.error('Error creating subjects table:', createError);
+        // Table might already exist, continue anyway
       }
     }
     
@@ -57,11 +57,11 @@ const createStudentsTable = async () => {
     if (error && error.code === '42P01') {
       // Create table if it doesn't exist using raw SQL
       const { error: createError } = await supabase
-        .rpc('create_students_table', {})
-        .catch(() => ({ error: { message: 'Function not found, table might already exist' } }));
+        .rpc('create_students_table', {});
       
-      if (createError && createError.message !== 'Function not found, table might already exist') {
+      if (createError) {
         console.error('Error creating students table:', createError);
+        // Table might already exist, continue anyway
       }
     }
     

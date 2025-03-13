@@ -28,7 +28,7 @@ const LoginCard = ({ title, description, icon: Icon, route, color }: LoginCardPr
     return (
       <LoginForm 
         role={title as "Teacher" | "Student" | "Admin" | "Parent/Mentor"} 
-        onBack={handleBack} 
+        onClose={handleBack} 
         color={color} 
       />
     );
