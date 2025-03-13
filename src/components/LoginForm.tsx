@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { toast } from "sonner";
 import { ArrowLeft, LogIn } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
 
 interface LoginFormProps {
   role: "Teacher" | "Student" | "Admin" | "Parent/Mentor";
@@ -18,11 +20,91 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
   const [formData, setFormData] = useState<Record<string, string>>({
     email: "",
     uniqueCode: "",
-    subject: ""
+    subject: "",
+    section: ""
   });
+  const [subjects, setSubjects] = useState<{subject: string, code: string}[]>([
+    { subject: "DMS", code: "8253A-67K" },
+    { subject: "TOC", code: "3135B-23X" },
+    { subject: "DCCN", code: "9402C-11M" },
+    { subject: "DBMS", code: "2856D-96T" },
+    { subject: "JAVA", code: "7361E-39J" },
+    { subject: "MPI", code: "5247F-72L" }
+  ]);
+  const [sections, setSection] = useState<{id: string, name: string}[]>([
+    { id: "A", name: "Section A" },
+    { id: "B", name: "Section B" },
+    { id: "C", name: "Section C" },
+    { id: "D", name: "Section D" },
+    { id: "E", name: "Section E" },
+  ]);
 
   const handleChange = (key: string, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const verifyTeacherCode = async (subject: string, code: string) => {
+    try {
+      // Check if the subject and code match from the subjects table
+      const { data, error } = await supabase
+        .from('subjects')
+        .select('*')
+        .eq('subject', subject)
+        .eq('code', code)
+        .single();
+      
+      if (error) {
+        console.error("Error verifying teacher code:", error);
+        return false;
+      }
+      
+      return !!data; // Return true if data exists, false otherwise
+    } catch (error) {
+      console.error("Error in teacher code verification:", error);
+      return false;
+    }
+  };
+
+  const verifyStudentCode = async (studentCode: string) => {
+    try {
+      // Check if the student code exists in the students_section_a table
+      const { data, error } = await supabase
+        .from('students_section_a')
+        .select('*')
+        .eq('student_code', studentCode)
+        .single();
+      
+      if (error) {
+        console.error("Error verifying student code:", error);
+        return { verified: false, studentData: null };
+      }
+      
+      return { verified: !!data, studentData: data };
+    } catch (error) {
+      console.error("Error in student code verification:", error);
+      return { verified: false, studentData: null };
+    }
+  };
+
+  const verifyParentCode = async (parentCode: string) => {
+    try {
+      // Check if the parent code exists in the students_section_a table
+      const { data, error } = await supabase
+        .from('students_section_a')
+        .select('*')
+        .eq('parent_code', parentCode)
+        .single();
+      
+      if (error) {
+        console.error("Error verifying parent code:", error);
+        return { verified: false, parentData: null };
+      }
+      
+      return { verified: !!data, parentData: data };
+    } catch (error) {
+      console.error("Error in parent code verification:", error);
+      return { verified: false, parentData: null };
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,14 +116,69 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
     }
 
     try {
+      if (role === "Teacher") {
+        if (!formData.subject || !formData.section) {
+          toast.error("Please select both subject and section");
+          return;
+        }
+
+        // For the special demo teacher
+        if (formData.uniqueCode === "aayush123") {
+          await signIn(
+            formData.email, 
+            formData.uniqueCode, 
+            role,
+            formData.subject,
+            formData.section
+          );
+          return;
+        }
+
+        // For other teachers, verify the code against the subject
+        const isVerified = await verifyTeacherCode(formData.subject, formData.uniqueCode);
+        if (!isVerified) {
+          toast.error("Invalid teacher code for the selected subject");
+          return;
+        }
+      } else if (role === "Student") {
+        // Verify student code
+        const { verified, studentData } = await verifyStudentCode(formData.uniqueCode);
+        if (!verified) {
+          toast.error("Invalid student code");
+          return;
+        }
+        
+        // Set the student's section
+        if (studentData) {
+          formData.section = studentData.section || "A";
+          formData.name = studentData.name || "";
+        }
+      } else if (role === "Parent/Mentor") {
+        // Verify parent/mentor code
+        const { verified, parentData } = await verifyParentCode(formData.uniqueCode);
+        if (!verified) {
+          toast.error("Invalid mentor code");
+          return;
+        }
+        
+        // Set the section associated with the parent/mentor's child
+        if (parentData) {
+          formData.section = parentData.section || "A";
+          formData.studentName = parentData.name || "";
+        }
+      }
+
+      // If we've reached here, all verifications passed
       await signIn(
         formData.email, 
         formData.uniqueCode, 
         role,
-        role === "Teacher" ? formData.subject : undefined
+        role === "Teacher" ? formData.subject : undefined,
+        formData.section
       );
     } catch (error) {
       console.error("Login error:", error);
+      toast.error("An unexpected error occurred during login");
     }
   };
 
@@ -91,18 +228,32 @@ const LoginForm = ({ role, onBack, color }: LoginFormProps) => {
                 />
               </div>
               <div className="space-y-2">
+                <label htmlFor="section" className="text-sm font-medium">Section</label>
+                <Select onValueChange={(value) => handleChange("section", value)} disabled={isLoading}>
+                  <SelectTrigger id="section" className="w-full">
+                    <SelectValue placeholder="Select section" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sections.map((section) => (
+                      <SelectItem key={section.id} value={section.id}>
+                        {section.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <label htmlFor="subject" className="text-sm font-medium">Subject</label>
                 <Select onValueChange={(value) => handleChange("subject", value)} disabled={isLoading}>
                   <SelectTrigger id="subject" className="w-full">
                     <SelectValue placeholder="Select subject" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="DMS">DMS (8253A-67K)</SelectItem>
-                    <SelectItem value="TOC">TOC (3135B-23X)</SelectItem>
-                    <SelectItem value="DCCN">DCCN (9402C-11M)</SelectItem>
-                    <SelectItem value="DBMS">DBMS (2856D-96T)</SelectItem>
-                    <SelectItem value="JAVA">JAVA (7361E-39J)</SelectItem>
-                    <SelectItem value="MPI">MPI (5247F-72L)</SelectItem>
+                    {subjects.map((subject) => (
+                      <SelectItem key={subject.subject} value={subject.subject}>
+                        {subject.subject} ({subject.code})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

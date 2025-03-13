@@ -9,7 +9,7 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  signIn: (email: string, uniqueCode: string, role: string, subject?: string) => Promise<void>;
+  signIn: (email: string, uniqueCode: string, role: string, subject?: string, section?: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setupSession();
   }, []);
 
-  const signIn = async (email: string, uniqueCode: string, role: string, subject?: string) => {
+  const signIn = async (email: string, uniqueCode: string, role: string, subject?: string, section?: string) => {
     setIsLoading(true);
     
     try {
@@ -55,7 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: email,
           role: role,
           subject: subject || "History",
-          class: "12 E",
+          section: section || "E",
+          class: section ? `12 ${section}` : "12 E",
           uniqueCode: uniqueCode,
         };
         
@@ -80,8 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Store user role in session storage
-      sessionStorage.setItem("user", JSON.stringify({ role, email }));
+      // Store user role and other details in session storage
+      const userData = {
+        role, 
+        email,
+        subject,
+        section: section || "A"
+      };
+      
+      sessionStorage.setItem("user", JSON.stringify(userData));
       
       // Navigate to the correct dashboard
       switch (role) {
