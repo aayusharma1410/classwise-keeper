@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Store mock data for demo purposes
         const teacherData = {
           name: "Aayush",
-          email: email,
+          email: email || "teacher@example.com", // Use default email if not provided
           role: role,
           subject: subject || "History",
           section: section || "E",
@@ -77,7 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Verify codes based on role
       let isValid = false;
-      let userData: any = { role, email };
+      let userData: any = { role };
+      if (email) userData.email = email;
 
       switch (role) {
         case "Teacher":
@@ -94,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const subjectInfo = await getSubjectByCode(uniqueCode);
             userData = {
               ...userData,
-              name: email.split('@')[0],
+              name: email ? email.split('@')[0] : `Teacher-${uniqueCode.substring(0, 4)}`,
               subject: teacherVerification.subject || subject,
               section: section || "A",
               class: `12 ${section || "A"}`,
@@ -117,6 +118,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               name: studentVerification.student.student_name,
               section: studentVerification.student.section || "A",
               studentCode: uniqueCode,
+              rollNumber: studentVerification.student.sno,
+              id: studentVerification.student.id,
             };
           } else {
             toast.error("Invalid student code");
@@ -132,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (isValid && parentVerification.student) {
             userData = {
               ...userData,
-              name: email.split('@')[0] || "Parent",
+              name: email ? email.split('@')[0] : "Parent",
               student: parentVerification.student.student_name,
               section: parentVerification.student.section || "A",
               parentCode: uniqueCode,

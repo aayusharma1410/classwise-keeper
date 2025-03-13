@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,6 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 
 interface FormData {
-  email: string;
   uniqueCode: string;
   role: string;
   section?: string;
@@ -79,8 +79,8 @@ const LoginForm = ({ role, onClose, color }: LoginFormProps) => {
   }, [selectedSection, subjects]);
 
   const onSubmit = async (data: FormData) => {
-    if (!data.email || !data.uniqueCode) {
-      toast.error("Email and unique code are required");
+    if (!data.uniqueCode) {
+      toast.error("Unique code is required");
       return;
     }
 
@@ -90,7 +90,8 @@ const LoginForm = ({ role, onClose, color }: LoginFormProps) => {
     }
 
     try {
-      await signIn(data.email, data.uniqueCode, role, data.section, data.subject);
+      // Use empty string as email placeholder since we're not collecting emails
+      await signIn("", data.uniqueCode, role, data.section, data.subject);
       onClose();
     } catch (error) {
       console.error("Login error:", error);
@@ -144,22 +145,6 @@ const LoginForm = ({ role, onClose, color }: LoginFormProps) => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                {...register("email", { required: true })}
-                className={errors.email ? "border-red-500" : ""}
-              />
-              {errors.email && (
-                <p className="text-xs text-red-500">Email is required</p>
-              )}
-            </div>
-
             {role === "Teacher" && (
               <div className="space-y-2">
                 <label htmlFor="section" className="text-sm font-medium">

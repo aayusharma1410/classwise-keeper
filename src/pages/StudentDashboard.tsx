@@ -6,13 +6,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Home, BookOpen, GraduationCap, Calendar, List, FileText, Bell, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { getStudentAttendance, groupAttendanceByMonth, calculateAttendancePercentage } from "@/lib/attendance-service";
+import StudentProfileCard from "@/components/StudentProfileCard";
 
 interface StudentData {
   name: string;
   rollNumber: string;
   studentCode: string;
   role: string;
+  section: string;
   id?: string;
+  photoUrl?: string;
 }
 
 interface AttendanceMonth {
@@ -126,31 +129,8 @@ const StudentDashboard = () => {
 
       {/* Main Content */}
       <main className="container mx-auto p-4 md:p-6">
-        {/* Student Profile Card */}
-        <Card className="mb-6 border-blue-100 shadow-md">
-          <CardHeader className="bg-blue-50 border-b border-blue-100">
-            <CardTitle className="flex items-center gap-2 text-blue-700">
-              <GraduationCap className="h-5 w-5 text-blue-600" />
-              Student Profile
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex flex-col p-3 bg-blue-50 rounded-lg">
-                <span className="text-sm text-gray-500">Name</span>
-                <span className="font-medium text-blue-800">{studentData.name}</span>
-              </div>
-              <div className="flex flex-col p-3 bg-blue-50 rounded-lg">
-                <span className="text-sm text-gray-500">Roll Number</span>
-                <span className="font-medium text-blue-800">{studentData.rollNumber}</span>
-              </div>
-              <div className="flex flex-col p-3 bg-blue-50 rounded-lg">
-                <span className="text-sm text-gray-500">Student Code</span>
-                <span className="font-medium text-blue-800">{studentData.studentCode}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Student Profile Card with Photo Upload */}
+        <StudentProfileCard studentData={studentData} />
 
         {/* Attendance Alert Card - Show only if below 75% */}
         <AttendanceAlarmCard percentage={parseInt(attendancePercentage)} />
