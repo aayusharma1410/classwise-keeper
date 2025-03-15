@@ -58,7 +58,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Store mock data for demo purposes
         const teacherData = {
           name: "Aayush",
-          email: email || "teacher@example.com", // Use default email if not provided
           role: role,
           subject: subject || "History",
           section: section || "E",
@@ -79,7 +78,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Verify codes based on role
       let isValid = false;
       let userData: any = { role };
-      if (email) userData.email = email;
 
       switch (role) {
         case "Teacher":
@@ -96,16 +94,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           if (isValid) {
             const subjectInfo = await getSubjectByCode(uniqueCode);
+            let subjectName = teacherVerification.subject || subject;
+            
+            // Directly fetch the subject name from the subjects table
+            const { data: subjectData, error: subjectError } = await supabase
+              .from('subjects')
+              .select('subject_name')
+              .eq('code', uniqueCode)
+              .single();
+              
+            if (!subjectError && subjectData) {
+              subjectName = subjectData.subject_name;
+            }
+            
             userData = {
               ...userData,
-              name: email ? email.split('@')[0] : `Teacher-${uniqueCode.substring(0, 4)}`,
-              subject: teacherVerification.subject || subject,
+              name: uniqueCode.substring(0, 4) + "-Teacher",
+              subject: subjectName,
               section: section,
               class: `12 ${section}`,
               uniqueCode,
             };
           } else {
-            toast.error("Invalid teacher code for this section");
+            toast.error(`Invalid teacher code for section ${section}`);
             setIsLoading(false);
             return;
           }
@@ -125,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               studentCode: uniqueCode,
               rollNumber: studentVerification.student.sno,
               id: studentVerification.student.id,
+              photo_url: studentVerification.student.photo_url,
             };
           } else {
             toast.error("Invalid student code");
@@ -140,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (isValid && parentVerification.student) {
             userData = {
               ...userData,
-              name: email ? email.split('@')[0] : "Parent",
+              name: "Parent of " + parentVerification.student.student_name,
               student: parentVerification.student.student_name,
               section: parentVerification.student.section || "A",
               parentCode: uniqueCode,
@@ -187,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           break;
       }
       
-      toast.success(`Logged in successfully as ${role}`);
+      toast.success(`Logged in successfully as ${userData.name}`);
     } catch (error) {
       console.error("Sign in error:", error);
       toast.error("An unexpected error occurred during login");

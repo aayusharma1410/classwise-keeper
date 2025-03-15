@@ -42,13 +42,22 @@ const LoginForm = ({ role, onClose, color }: LoginFormProps) => {
   const [subjects, setSubjects] = useState<{id: number, subject_name: string, code: string, section: string}[]>([]);
   const [selectedSection, setSelectedSection] = useState<string>("A");
   const [filteredSubjects, setFilteredSubjects] = useState<{id: number, subject_name: string, code: string, section: string}[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
-  } = useForm<FormData>();
+  } = useForm<FormData>({
+    defaultValues: {
+      role,
+      section: selectedSection
+    }
+  });
+
+  const currentSection = watch("section");
 
   useEffect(() => {
     setValue("role", role);
@@ -90,12 +99,15 @@ const LoginForm = ({ role, onClose, color }: LoginFormProps) => {
     }
 
     try {
+      setIsSubmitting(true);
       // Use empty string as email placeholder since we're not collecting emails
       await signIn("", data.uniqueCode, role, data.section, data.subject);
       onClose();
     } catch (error) {
       console.error("Login error:", error);
       toast.error("Login failed. Please check your credentials.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -152,7 +164,7 @@ const LoginForm = ({ role, onClose, color }: LoginFormProps) => {
                   Section
                 </label>
                 <Select 
-                  defaultValue="A"
+                  defaultValue={selectedSection}
                   onValueChange={handleSectionChange}
                 >
                   <SelectTrigger>
@@ -187,7 +199,7 @@ const LoginForm = ({ role, onClose, color }: LoginFormProps) => {
 
             {role === "Teacher" && filteredSubjects.length > 0 && (
               <div className="mt-4 p-3 bg-blue-50 rounded-md">
-                <h3 className="text-sm font-medium mb-2">Available Subject Codes for {selectedSection === "E" ? "All Sections" : `Section ${selectedSection}`}:</h3>
+                <h3 className="text-sm font-medium mb-2">Available Subject Codes for Section {selectedSection}:</h3>
                 <div className="grid grid-cols-1 gap-2">
                   {filteredSubjects.map((subject) => (
                     <div key={subject.id} className="text-xs">
@@ -212,9 +224,9 @@ const LoginForm = ({ role, onClose, color }: LoginFormProps) => {
                 type="submit" 
                 className="flex-1" 
                 style={color ? { backgroundColor: color.replace("bg-", "") } : {}}
-                disabled={isLoading}
+                disabled={isLoading || isSubmitting}
               >
-                {isLoading ? (
+                {(isLoading || isSubmitting) ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Signing In...

@@ -135,14 +135,47 @@ const createStorageBucket = async () => {
 // Function to upload all data
 export const uploadAllData = async () => {
   try {
-    // Upload subjects data for Section A
+    // Upload subjects data for all sections
     const subjectsData = [
+      // Section A
       { id: 1, subject_name: 'DMS', code: '8253A-67K', section: 'A' },
       { id: 2, subject_name: 'TOC', code: '3135B-23X', section: 'A' },
       { id: 3, subject_name: 'DCCN', code: '9402C-11M', section: 'A' },
       { id: 4, subject_name: 'DBMS', code: '2856D-96T', section: 'A' },
       { id: 5, subject_name: 'JAVA', code: '7361E-39J', section: 'A' },
       { id: 6, subject_name: 'MPI', code: '5247F-72L', section: 'A' },
+      
+      // Section B
+      { id: 7, subject_name: 'DMS', code: '6138A-59N', section: 'B' },
+      { id: 8, subject_name: 'TOC', code: '8472B-64Y', section: 'B' },
+      { id: 9, subject_name: 'DCCN', code: '4593C-32H', section: 'B' },
+      { id: 10, subject_name: 'DBMS', code: '1678D-90V', section: 'B' },
+      { id: 11, subject_name: 'JAVA', code: '3814E-21U', section: 'B' },
+      { id: 12, subject_name: 'MPI', code: '9925F-47P', section: 'B' },
+      
+      // Section C
+      { id: 13, subject_name: 'DMS', code: '4762A-88D', section: 'C' },
+      { id: 14, subject_name: 'TOC', code: '2507B-53O', section: 'C' },
+      { id: 15, subject_name: 'DCCN', code: '8134C-76Z', section: 'C' },
+      { id: 16, subject_name: 'DBMS', code: '6259D-42B', section: 'C' },
+      { id: 17, subject_name: 'JAVA', code: '7983E-19E', section: 'C' },
+      { id: 18, subject_name: 'MPI', code: '1546F-81C', section: 'C' },
+      
+      // Section D
+      { id: 19, subject_name: 'DMS', code: '3682A-33M', section: 'D' },
+      { id: 20, subject_name: 'TOC', code: '7425B-25N', section: 'D' },
+      { id: 21, subject_name: 'DCCN', code: '9023C-50Y', section: 'D' },
+      { id: 22, subject_name: 'DBMS', code: '4361D-71W', section: 'D' },
+      { id: 23, subject_name: 'JAVA', code: '2584E-97H', section: 'D' },
+      { id: 24, subject_name: 'MPI', code: '6709F-66X', section: 'D' },
+      
+      // Section E
+      { id: 25, subject_name: 'DMS', code: '5273A-17J', section: 'E' },
+      { id: 26, subject_name: 'TOC', code: '3852B-60R', section: 'E' },
+      { id: 27, subject_name: 'DCCN', code: '1496C-55Q', section: 'E' },
+      { id: 28, subject_name: 'DBMS', code: '2187D-80S', section: 'E' },
+      { id: 29, subject_name: 'JAVA', code: '6349E-14T', section: 'E' },
+      { id: 30, subject_name: 'MPI', code: '7751F-48L', section: 'E' },
     ];
 
     const { error: subjectsError } = await supabase

@@ -32,12 +32,13 @@ import { ensureClassCodesTableExists } from "@/lib/class-code-service";
 
 interface TeacherData {
   name: string;
-  email: string;
+  email?: string;
   role: string;
   subject?: string;
   class?: string;
   uniqueCode?: string;
   id?: string;
+  section?: string;
 }
 
 const TeacherDashboard = () => {
@@ -50,6 +51,7 @@ const TeacherDashboard = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isCreatingTable, setIsCreatingTable] = useState(false);
+  const [subjects, setSubjects] = useState<any[]>([]);
 
   useEffect(() => {
     const userData = sessionStorage.getItem("user");
@@ -59,13 +61,37 @@ const TeacherDashboard = () => {
       
       if (parsedData.class) {
         setSelectedClass(parsedData.class);
+      } else if (parsedData.section) {
+        setSelectedClass(`12 ${parsedData.section}`);
       }
       
       if (parsedData.subject) {
         setSelectedSubject(parsedData.subject);
       }
+    } else {
+      // If no user data, redirect to login
+      navigate('/');
     }
-  }, []);
+    
+    // Fetch subjects
+    fetchSubjects();
+  }, [navigate]);
+
+  const fetchSubjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('subjects')
+        .select('*')
+        .order('id', { ascending: true });
+      
+      if (error) throw error;
+      if (data) {
+        setSubjects(data);
+      }
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+    }
+  };
 
   const class12EStudents = [
     { id: 1, name: "Rahul Sharma", roll: "12E001", avatar: "RS" },
@@ -78,21 +104,12 @@ const TeacherDashboard = () => {
     { id: 8, name: "Meera Khanna", roll: "12E008", avatar: "MK" },
   ];
 
-  const subjects = [
-    { id: "1", name: "DMS", code: "8253A-67K" },
-    { id: "2", name: "TOC", code: "3135B-23X" },
-    { id: "3", name: "DCCN", code: "9402C-11M" },
-    { id: "4", name: "DBMS", code: "2856D-96T" },
-    { id: "5", name: "JAVA", code: "7361E-39J" },
-    { id: "6", name: "MPI", code: "5247F-72L" },
-  ];
-
-  const classes = [
-    { id: "1", name: "Computer Science - Year 1" },
-    { id: "2", name: "Computer Science - Year 2" },
-    { id: "3", name: "Computer Science - Year 3" },
-    { id: "4", name: "12 E" },
-    { id: "5", name: "Section A" },
+  const sections = [
+    { value: "A", label: "Section A" },
+    { value: "B", label: "Section B" },
+    { value: "C", label: "Section C" },
+    { value: "D", label: "Section D" },
+    { value: "E", label: "Section E" },
   ];
 
   const handleDownloadReport = () => {
@@ -121,8 +138,87 @@ const TeacherDashboard = () => {
   };
 
   const getClassId = () => {
-    const classItem = classes.find(c => c.name === selectedClass);
-    return classItem?.id || "4";
+    const classItem = sections.find(c => c.value === selectedClass);
+    return classItem?.value || "4";
+  };
+
+  const handleUploadAllSubjectCodes = async () => {
+    setIsUploading(true);
+    
+    try {
+      // Create or replace all subject codes for all sections
+      const subjectsData = [
+        // Section A
+        { id: 1, subject_name: 'DMS', code: '8253A-67K', section: 'A' },
+        { id: 2, subject_name: 'TOC', code: '3135B-23X', section: 'A' },
+        { id: 3, subject_name: 'DCCN', code: '9402C-11M', section: 'A' },
+        { id: 4, subject_name: 'DBMS', code: '2856D-96T', section: 'A' },
+        { id: 5, subject_name: 'JAVA', code: '7361E-39J', section: 'A' },
+        { id: 6, subject_name: 'MPI', code: '5247F-72L', section: 'A' },
+        
+        // Section B
+        { id: 7, subject_name: 'DMS', code: '6138A-59N', section: 'B' },
+        { id: 8, subject_name: 'TOC', code: '8472B-64Y', section: 'B' },
+        { id: 9, subject_name: 'DCCN', code: '4593C-32H', section: 'B' },
+        { id: 10, subject_name: 'DBMS', code: '1678D-90V', section: 'B' },
+        { id: 11, subject_name: 'JAVA', code: '3814E-21U', section: 'B' },
+        { id: 12, subject_name: 'MPI', code: '9925F-47P', section: 'B' },
+        
+        // Section C
+        { id: 13, subject_name: 'DMS', code: '4762A-88D', section: 'C' },
+        { id: 14, subject_name: 'TOC', code: '2507B-53O', section: 'C' },
+        { id: 15, subject_name: 'DCCN', code: '8134C-76Z', section: 'C' },
+        { id: 16, subject_name: 'DBMS', code: '6259D-42B', section: 'C' },
+        { id: 17, subject_name: 'JAVA', code: '7983E-19E', section: 'C' },
+        { id: 18, subject_name: 'MPI', code: '1546F-81C', section: 'C' },
+        
+        // Section D
+        { id: 19, subject_name: 'DMS', code: '3682A-33M', section: 'D' },
+        { id: 20, subject_name: 'TOC', code: '7425B-25N', section: 'D' },
+        { id: 21, subject_name: 'DCCN', code: '9023C-50Y', section: 'D' },
+        { id: 22, subject_name: 'DBMS', code: '4361D-71W', section: 'D' },
+        { id: 23, subject_name: 'JAVA', code: '2584E-97H', section: 'D' },
+        { id: 24, subject_name: 'MPI', code: '6709F-66X', section: 'D' },
+        
+        // Section E
+        { id: 25, subject_name: 'DMS', code: '5273A-17J', section: 'E' },
+        { id: 26, subject_name: 'TOC', code: '3852B-60R', section: 'E' },
+        { id: 27, subject_name: 'DCCN', code: '1496C-55Q', section: 'E' },
+        { id: 28, subject_name: 'DBMS', code: '2187D-80S', section: 'E' },
+        { id: 29, subject_name: 'JAVA', code: '6349E-14T', section: 'E' },
+        { id: 30, subject_name: 'MPI', code: '7751F-48L', section: 'E' },
+      ];
+
+      const { error: subjectsError } = await supabase
+        .from('subjects')
+        .upsert(subjectsData, { onConflict: 'id' });
+
+      if (subjectsError) {
+        console.error('Error uploading subject codes:', subjectsError);
+        toast({
+          title: "Upload Failed",
+          description: `Error uploading subject codes: ${subjectsError.message}`,
+          variant: "destructive",
+        });
+      } else {
+        // Refresh the subjects list
+        await fetchSubjects();
+        
+        toast({
+          title: "Upload Successful",
+          description: "All subject codes have been uploaded to the database",
+        });
+      }
+    } catch (error) {
+      console.error("Error uploading subject codes:", error);
+      toast({
+        title: "Upload Error",
+        description: "An unexpected error occurred while uploading subject codes",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleUploadClassCodes = async () => {
@@ -235,6 +331,11 @@ const TeacherDashboard = () => {
                 Teacher Dashboard
               </h1>
               <p className="text-gray-600">Welcome, {teacherData?.name || "Professor"}</p>
+              {teacherData?.section && teacherData?.subject && (
+                <p className="text-sm text-blue-600">
+                  Section {teacherData.section} - {teacherData.subject}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex space-x-3">
@@ -291,6 +392,15 @@ const TeacherDashboard = () => {
                 <Database className="mr-2 h-4 w-4" />
                 <span>{isUploading ? "Uploading..." : "Upload All Data"}</span>
               </Button>
+              
+              <Button 
+                onClick={handleUploadAllSubjectCodes} 
+                disabled={isUploading}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                <span>{isUploading ? "Uploading..." : "Upload All Subject Codes"}</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -308,10 +418,12 @@ const TeacherDashboard = () => {
                     <SelectValue placeholder="Select a subject" />
                   </SelectTrigger>
                   <SelectContent>
-                    {subjects.map((subject) => (
-                      <SelectItem key={subject.id} value={subject.name}>
-                        {subject.name} ({subject.code})
-                      </SelectItem>
+                    {subjects
+                      .filter(subject => !teacherData?.section || subject.section === teacherData?.section)
+                      .map((subject) => (
+                        <SelectItem key={subject.id} value={subject.subject_name}>
+                          {subject.subject_name} ({subject.code})
+                        </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -323,9 +435,9 @@ const TeacherDashboard = () => {
                     <SelectValue placeholder="Select a class" />
                   </SelectTrigger>
                   <SelectContent>
-                    {classes.map((classItem) => (
-                      <SelectItem key={classItem.id} value={classItem.name}>
-                        {classItem.name}
+                    {sections.map((section) => (
+                      <SelectItem key={section.value} value={`12 ${section.value}`}>
+                        Class 12 {section.value}
                       </SelectItem>
                     ))}
                   </SelectContent>
