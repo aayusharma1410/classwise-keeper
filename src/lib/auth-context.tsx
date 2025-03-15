@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, uniqueCode: string, role: string, section?: string, subject?: string) => {
     setIsLoading(true);
+    console.log(`Attempting login with: role=${role}, code=${uniqueCode}, section=${section}`);
     
     try {
       // Special case for teacher with code aayush123
@@ -88,7 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
           }
           
-          const teacherVerification = await verifyTeacherCode(uniqueCode, section || "A");
+          console.log("Verifying teacher code:", uniqueCode, "for section:", section);
+          const teacherVerification = await verifyTeacherCode(uniqueCode, section);
+          console.log("Teacher verification result:", teacherVerification);
           isValid = teacherVerification.valid;
           
           if (isValid) {
@@ -97,8 +100,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               ...userData,
               name: email ? email.split('@')[0] : `Teacher-${uniqueCode.substring(0, 4)}`,
               subject: teacherVerification.subject || subject,
-              section: section || "A",
-              class: `12 ${section || "A"}`,
+              section: section,
+              class: `12 ${section}`,
               uniqueCode,
             };
           } else {
@@ -109,7 +112,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           break;
           
         case "Student":
+          console.log("Verifying student code:", uniqueCode);
           const studentVerification = await verifyStudentCode(uniqueCode);
+          console.log("Student verification result:", studentVerification);
           isValid = studentVerification.valid;
           
           if (isValid && studentVerification.student) {

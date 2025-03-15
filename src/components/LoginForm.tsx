@@ -40,7 +40,7 @@ const sections = [
 const LoginForm = ({ role, onClose, color }: LoginFormProps) => {
   const { signIn, isLoading } = useAuth();
   const [subjects, setSubjects] = useState<{id: number, subject_name: string, code: string, section: string}[]>([]);
-  const [selectedSection, setSelectedSection] = useState("A");
+  const [selectedSection, setSelectedSection] = useState<string>("A");
   const [filteredSubjects, setFilteredSubjects] = useState<{id: number, subject_name: string, code: string, section: string}[]>([]);
   
   const {
@@ -130,6 +130,7 @@ const LoginForm = ({ role, onClose, color }: LoginFormProps) => {
   };
 
   const handleSectionChange = (value: string) => {
+    console.log("Section changed to:", value);
     setSelectedSection(value);
     setValue("section", value);
   };
@@ -151,7 +152,7 @@ const LoginForm = ({ role, onClose, color }: LoginFormProps) => {
                   Section
                 </label>
                 <Select 
-                  defaultValue={selectedSection} 
+                  defaultValue="A"
                   onValueChange={handleSectionChange}
                 >
                   <SelectTrigger>
